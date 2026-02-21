@@ -1520,9 +1520,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR lpszCmdLine, int)
 		}
 
 		wstring prog2Launch = params[0];
-		wchar_t prog2LaunchDir[MAX_PATH];
-		lstrcpy(prog2LaunchDir, prog2Launch.c_str());
-		::PathRemoveFileSpec(prog2LaunchDir);
 		wstring destPathRoot = params[1];
 
 #ifdef _DEBUG
