@@ -117,7 +117,10 @@ class Caddy:
         self._mkpath(self._tmp_dir)
         if self._process:
             self._process.terminate()
-            self._process.wait(timeout=2)
+            try:
+                self._process.wait(timeout=1)
+            except Exception:
+                self._process.kill()
             self._process = None
             return not wait_dead or self.wait_dead(timeout=timedelta(seconds=5))
         return True
@@ -162,10 +165,10 @@ class Caddy:
     def _write_config(self):
         domain1 = self.env.domain1
         creds1 = self.env.get_credentials(domain1)
-        assert creds1  # convince pytype this isn't None
+        assert creds1  # convince pytype this is not None
         domain2 = self.env.domain2
         creds2 = self.env.get_credentials(domain2)
-        assert creds2  # convince pytype this isn't None
+        assert creds2  # convince pytype this is not None
         self._mkpath(self._docs_dir)
         self._mkpath(self._tmp_dir)
         with open(os.path.join(self._docs_dir, 'data.json'), 'w') as fd:

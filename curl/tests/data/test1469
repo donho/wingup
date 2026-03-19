@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="US-ASCII"?>
 <testcase>
 <info>
 <keywords>
@@ -9,9 +10,6 @@ FAILURE
 
 # Client-side
 <client>
-<server>
-none
-</server>
 <name>
 Space in FTP upload URL
 </name>

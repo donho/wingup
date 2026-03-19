@@ -139,6 +139,7 @@ host_triplet = @host@
 subdir = docs/libcurl/opts
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
+	$(top_srcdir)/m4/curl-apple-sectrust.m4 \
 	$(top_srcdir)/m4/curl-compilers.m4 \
 	$(top_srcdir)/m4/curl-confopts.m4 \
 	$(top_srcdir)/m4/curl-functions.m4 \
@@ -158,8 +159,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
 	$(top_srcdir)/m4/xc-lt-iface.m4 \
 	$(top_srcdir)/m4/xc-val-flgs.m4 \
 	$(top_srcdir)/m4/zz40-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz50-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz60-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
+	$(top_srcdir)/m4/zz50-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -240,6 +240,7 @@ CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
 CFLAG_CURL_SYMBOL_HIDING = @CFLAG_CURL_SYMBOL_HIDING@
+CLANG_TIDY = @CLANG_TIDY@
 CONFIGURE_OPTIONS = @CONFIGURE_OPTIONS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -254,6 +255,7 @@ CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX = @CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX@
 CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME = @CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME@
 CURL_NETWORK_AND_TIME_LIBS = @CURL_NETWORK_AND_TIME_LIBS@
 CYGPATH_W = @CYGPATH_W@
+DANTED = @DANTED@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
@@ -321,7 +323,9 @@ RANLIB = @RANLIB@
 RC = @RC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
+SFTPD = @SFTPD@
 SHELL = @SHELL@
+SSHD = @SSHD@
 SSL_BACKENDS = @SSL_BACKENDS@
 STRIP = @STRIP@
 SUPPORT_FEATURES = @SUPPORT_FEATURES@
@@ -465,6 +469,11 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 @BUILD_DOCS_TRUE@  CURLINFO_TOTAL_TIME_T.3                       \
 @BUILD_DOCS_TRUE@  CURLINFO_USED_PROXY.3                         \
 @BUILD_DOCS_TRUE@  CURLINFO_XFER_ID.3                            \
+@BUILD_DOCS_TRUE@  CURLMINFO_XFERS_ADDED.3                       \
+@BUILD_DOCS_TRUE@  CURLMINFO_XFERS_CURRENT.3                     \
+@BUILD_DOCS_TRUE@  CURLMINFO_XFERS_DONE.3                        \
+@BUILD_DOCS_TRUE@  CURLMINFO_XFERS_PENDING.3                     \
+@BUILD_DOCS_TRUE@  CURLMINFO_XFERS_RUNNING.3                     \
 @BUILD_DOCS_TRUE@  CURLMOPT_CHUNK_LENGTH_PENALTY_SIZE.3          \
 @BUILD_DOCS_TRUE@  CURLMOPT_CONTENT_LENGTH_PENALTY_SIZE.3        \
 @BUILD_DOCS_TRUE@  CURLMOPT_MAX_CONCURRENT_STREAMS.3             \
@@ -472,6 +481,9 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 @BUILD_DOCS_TRUE@  CURLMOPT_MAX_PIPELINE_LENGTH.3                \
 @BUILD_DOCS_TRUE@  CURLMOPT_MAX_TOTAL_CONNECTIONS.3              \
 @BUILD_DOCS_TRUE@  CURLMOPT_MAXCONNECTS.3                        \
+@BUILD_DOCS_TRUE@  CURLMOPT_NETWORK_CHANGED.3                    \
+@BUILD_DOCS_TRUE@  CURLMOPT_NOTIFYDATA.3                           \
+@BUILD_DOCS_TRUE@  CURLMOPT_NOTIFYFUNCTION.3                       \
 @BUILD_DOCS_TRUE@  CURLMOPT_PIPELINING.3                         \
 @BUILD_DOCS_TRUE@  CURLMOPT_PIPELINING_SERVER_BL.3               \
 @BUILD_DOCS_TRUE@  CURLMOPT_PIPELINING_SITE_BL.3                 \

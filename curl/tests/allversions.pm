@@ -22,13 +22,18 @@
 #
 ###########################################################################
 
-# populate the has %pastversion hash table with the version number as key and
+# populate the %pastversion hash table with the version number as key and
 # release date as value
+
+use strict;
+use warnings;
+
+our %pastversion;
 
 sub allversions {
     my ($file) = @_;
     open(A, "<$file") ||
-        die "can't open the versions file $file\n";
+        die "cannot open the versions file $file\n";
     my $before = 1;
     my $relcount;
     while(<A>) {

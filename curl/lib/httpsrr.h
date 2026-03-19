@@ -23,7 +23,6 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
 
 #ifdef USE_ARES
@@ -33,11 +32,12 @@
 #ifdef USE_HTTPSRR
 
 #define CURL_MAXLEN_host_name 253
-#define MAX_HTTPSRR_ALPNS 4
+#define MAX_HTTPSRR_ALPNS     4
 
 struct Curl_easy;
 
 struct Curl_https_rrinfo {
+  char *rrname; /* if NULL, the same as the URL hostname */
   /*
    * Fields from HTTPS RR. The only mandatory fields are priority and target.
    * See https://datatracker.ietf.org/doc/html/rfc9460#section-14.3.2
@@ -76,7 +76,7 @@ void Curl_httpsrr_cleanup(struct Curl_https_rrinfo *rrinfo);
 #define HTTPS_RR_CODE_ECH             0x05
 #define HTTPS_RR_CODE_IPV6            0x06
 
-#if defined(USE_ARES)
+#ifdef USE_ARES
 CURLcode Curl_httpsrr_from_ares(struct Curl_easy *data,
                                 const ares_dns_record_t *dnsrec,
                                 struct Curl_https_rrinfo *hinfo);

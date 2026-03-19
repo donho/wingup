@@ -32,27 +32,24 @@
 
 #include "cf-socket.h"
 
-#include "memdebug.h" /* LAST include file */
-
 static CURLcode t1663_setup(void)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   global_init(CURL_GLOBAL_ALL);
-  return res;
+  return result;
 }
 
-static void t1663_parse(
-  const char *input_data,
-  const char *exp_dev,
-  const char *exp_iface,
-  const char *exp_host,
-  CURLcode exp_rc)
+static void t1663_parse(const char *input_data,
+                        const char *exp_dev,
+                        const char *exp_iface,
+                        const char *exp_host,
+                        CURLcode result_exp)
 {
   char *dev = NULL;
   char *iface = NULL;
   char *host = NULL;
-  CURLcode rc = Curl_parse_interface(input_data, &dev, &iface, &host);
-  fail_unless(rc == exp_rc, "Curl_parse_interface() failed");
+  CURLcode result = Curl_parse_interface(input_data, &dev, &iface, &host);
+  fail_unless(result == result_exp, "Curl_parse_interface() failed");
 
   fail_unless(!!exp_dev == !!dev, "dev expectation failed.");
   fail_unless(!!exp_iface == !!iface, "iface expectation failed");
@@ -67,12 +64,12 @@ static void t1663_parse(
                 "host should be equal to exp_host");
   }
 
-  free(dev);
-  free(iface);
-  free(host);
+  curlx_free(dev);
+  curlx_free(iface);
+  curlx_free(host);
 }
 
-static CURLcode test_unit1663(char *arg)
+static CURLcode test_unit1663(const char *arg)
 {
   UNITTEST_BEGIN(t1663_setup())
 

@@ -36,13 +36,16 @@ Example: cd2cd [--in-place] <file.md> > <file.md>
 =end comment
 =cut
 
+use strict;
+use warnings;
+
 my $cd2cd = "0.1"; # to keep check
 my $dir;
 my $extension;
 my $inplace = 0;
 
 while(1) {
-    if($ARGV[0] eq "--in-place") {
+    if(@ARGV && $ARGV[0] eq "--in-place") {
         shift @ARGV;
         $inplace = 1;
     }
@@ -50,7 +53,6 @@ while(1) {
         last;
     }
 }
-
 
 use POSIX qw(strftime);
 my @ts;
@@ -67,7 +69,7 @@ sub outseealso {
     my @o;
     push @o, ".SH SEE ALSO\n";
     for my $s (sort @sa) {
-        push @o, sprintf "%s.BR $s", $comma ? ",\n": "";
+        push @o, sprintf "%s.BR $s", $comma ? ",\n" : "";
         $comma = 1;
     }
     push @o, "\n";
@@ -84,6 +86,9 @@ sub single {
     my $start = 0;
     my $d;
     my $line = 0;
+    my $salist = 0;
+    my $copyright;
+    my $spdx;
     open(F, "<:crlf", "$f") ||
         return 1;
     while(<F>) {
@@ -150,7 +155,9 @@ sub single {
                 return 2;
             }
             if(!$spdx) {
+                # REUSE-IgnoreStart
                 print STDERR "$f:$line:1:ERROR: no 'SPDX-License-Identifier:' field present\n";
+                # REUSE-IgnoreEnd
                 return 2;
             }
             last;
@@ -221,6 +228,6 @@ if($inplace) {
         single($a);
     }
 }
-else {
+elsif(@ARGV) {
     exit single($ARGV[0]);
 }

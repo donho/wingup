@@ -25,6 +25,7 @@
 ###########################################################################
 #
 import logging
+import os
 import pytest
 
 from testenv import Env, CurlClient
@@ -38,12 +39,8 @@ log = logging.getLogger(__name__)
 class TestErrors:
 
     # download 1 file, check that we get CURLE_PARTIAL_FILE
-    @pytest.mark.parametrize("proto", ['http/1.1', 'h2', 'h3'])
+    @pytest.mark.parametrize("proto", Env.http_protos())
     def test_05_01_partial_1(self, env: Env, httpd, nghttpx, proto):
-        if proto == 'h3' and not env.have_h3():
-            pytest.skip("h3 not supported")
-        if proto == 'h3' and env.curl_uses_lib('msh3'):
-            pytest.skip("msh3 stalls here")
         count = 1
         curl = CurlClient(env=env)
         urln = f'https://{env.authority_for(env.domain1, proto)}' \
@@ -60,14 +57,11 @@ class TestErrors:
         assert len(invalid_stats) == 0, f'failed: {invalid_stats}'
 
     # download files, check that we get CURLE_PARTIAL_FILE for all
-    @pytest.mark.parametrize("proto", ['h2', 'h3'])
+    @pytest.mark.parametrize("proto", Env.http_mplx_protos())
     def test_05_02_partial_20(self, env: Env, httpd, nghttpx, proto):
-        if proto == 'h3' and not env.have_h3():
-            pytest.skip("h3 not supported")
-        if proto == 'h3' and env.curl_uses_ossl_quic():
-            pytest.skip("openssl-quic is flaky in yielding proper error codes")
-        if proto == 'h3' and env.curl_uses_lib('msh3'):
-            pytest.skip("msh3 stalls here")
+        if proto == 'h3' and env.curl_uses_lib('quiche') and \
+                not env.curl_lib_version_at_least('quiche', '0.24.8'):
+            pytest.skip("quiche issue #2277 not fixed")
         count = 20
         curl = CurlClient(env=env)
         urln = f'https://{env.authority_for(env.domain1, proto)}' \
@@ -81,10 +75,11 @@ class TestErrors:
         invalid_stats = []
         for idx, s in enumerate(r.stats):
             if 'exitcode' not in s or s['exitcode'] not in [18, 55, 56, 92, 95]:
-                invalid_stats.append(f'request {idx} exit with {s["exitcode"]}\n{s}')
-        assert len(invalid_stats) == 0, f'failed: {invalid_stats}'
+                invalid_stats.append(f'request {idx} exit with {s["exitcode"]}\n{r.dump_logs()}')
+        assert len(invalid_stats) == 0, f'failed: {invalid_stats}\n{r.dump_logs()}'
 
     # access a resource that, on h2, RST the stream with HTTP_1_1_REQUIRED
+    @pytest.mark.skipif(condition=not Env.have_h2_curl(), reason="curl without h2")
     def test_05_03_required(self, env: Env, httpd, nghttpx):
         curl = CurlClient(env=env)
         proto = 'http/1.1'
@@ -111,6 +106,8 @@ class TestErrors:
     #   and not see the "unclean" close either
     @pytest.mark.parametrize("proto", ['http/1.0', 'http/1.1', 'h2'])
     def test_05_04_unclean_tls_shutdown(self, env: Env, httpd, nghttpx, proto):
+        if proto == 'h2' and not env.have_h2_curl():
+            pytest.skip("h2 not supported")
         if proto == 'h3' and not env.have_h3():
             pytest.skip("h3 not supported")
         count = 10 if proto == 'h2' else 1
@@ -127,3 +124,19 @@ class TestErrors:
         else:
             r.check_exit_code(0)
             r.check_response(http_status=200, count=count)
+
+    # Make a connect with a fail for '::1' and wrong certificate for '127.0.0.1'
+    # The error message reported needs to be from the certificate.
+    # verifies issue #20608
+    @pytest.mark.parametrize("proto", Env.http_h1_h2_protos())
+    def test_05_05_failed_peer(self, env: Env, proto, httpd, nghttpx):
+        domain = f'invalid.{env.tld}'
+        url = f'https://{domain}:{env.port_for(proto)}/'
+        run_env = os.environ.copy()
+        run_env['CURL_DBG_SOCK_FAIL_IPV6'] = '1'
+        curl = CurlClient(env=env, run_env=run_env)
+        r = curl.http_download(urls=[url], alpn_proto=proto, extra_args=[
+            '--resolve', f'{domain}:{env.port_for(proto)}:::1,127.0.0.1',
+        ])
+        assert r.exit_code == 60, f'{r}'
+        assert r.stats[0]['errormsg'] != 'CURL_DBG_SOCK_FAIL_IPV6: failed to open socket'

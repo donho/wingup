@@ -11,10 +11,9 @@ XML. All data for a single test case resides in a single ASCII file. Labels
 mark the beginning and the end of all sections, and each label must be written
 in its own line. Comments are either XML-style (enclosed with `<!--` and
 `-->`) or shell script style (beginning with `#`) and must appear on their own
-lines and not alongside actual test data. Most test data files are
-syntactically valid XML, although a few files are not (lack of support for
-character entities and the preservation of CR/LF characters at the end of
-lines are the biggest differences).
+lines and not alongside actual test data. Test data files are syntactically
+valid XML; lack of support for character entities is a big difference but macros
+like %CR fill that particular role here.
 
 Each test case source exists as a file matching the format
 `tests/data/testNUM`, where `NUM` is the unique test number, and must begin
@@ -76,6 +75,26 @@ For example, to insert the word hello 100 times:
 
     %repeat[100 x hello]%
 
+## Whitespace
+
+To force CRLF newline, add this macro to the end of the line:
+
+    %CR  - carriage return
+
+To add significant whitespace characters at the end of the line, or to empty
+lines:
+
+    %SP  - space
+    %TAB - horizontal tab
+
+## Special characters
+
+Macros to help keep data files XML-compliant:
+
+    %AMP - Ampersand: `&`
+    %GT  - Greater-than sign: `>`
+    %LT  - Less-than sign: `<`
+
 ## Insert capped epoch days
 
 Mostly to test capped cookie expire dates: `%days[NUM]` inserts the number of
@@ -93,6 +112,12 @@ The filename cannot contain `%` as that letter is used to end the name for
 the include instruction:
 
     %include filename%
+
+Or, a variant of the above where the file is loaded as a newline-agnostic
+text file, and whitespace, special character macros and variables expanded
+after inclusion:
+
+    %includetext filename%
 
 ## Conditional lines
 
@@ -140,7 +165,7 @@ Available substitute variables include:
 - `%FTP6PORT` - IPv6 port number of the FTP server
 - `%FTPPORT` - Port number of the FTP server
 - `%FTPSPORT` - Port number of the FTPS server
-- `%FTPTIME2` - Timeout in seconds that should be just sufficient to receive a
+- `%FTPTIME2` - Timeout in seconds that should be sufficient to receive a
   response from the test FTP server
 - `%GOPHER6PORT` - IPv6 port number of the Gopher server
 - `%GOPHERPORT` - Port number of the Gopher server
@@ -159,6 +184,7 @@ Available substitute variables include:
 - `%IMAPPORT` - Port number of the IMAP server
 - `%LOGDIR` - Log directory relative to %PWD
 - `%MQTTPORT` - Port number of the MQTT server
+- `%MQTTSPORT` - Port number of the MQTTS server
 - `%NOLISTENPORT` - Port number where no service is listening
 - `%POP36PORT` - IPv6 port number of the POP3 server
 - `%POP3PORT` - Port number of the POP3 server
@@ -222,7 +248,7 @@ When running a unit test and the keywords include `unittest`, the `<tool>`
 section can be left empty to use the standard unit test tool name `unitN` where
 `N` is the test number.
 
-The `text-ci` make target automatically skips test with the `flaky` keyword.
+The `test-ci` make target automatically skips test with the `flaky` keyword.
 
 Tests that have strict timing dependencies have the `timing-dependent` keyword.
 These are intended to eventually be treated specially on CI builds which are
@@ -233,7 +259,7 @@ similar.
 
 ## `<reply>`
 
-### `<data [nocheck="yes"] [sendzero="yes"] [hex="yes"] [nonewline="yes"] [crlf="yes"]>`
+### `<data [nocheck="yes"] [sendzero="yes"] [hex="yes"] [nonewline="yes"] [crlf="yes|headers"]>`
 
 data to be sent to the client on its request and later verified that it
 arrived safely. Set `nocheck="yes"` to prevent the test script from verifying
@@ -261,27 +287,30 @@ used as "raw" data.
 `nonewline=yes` means that the last byte (the trailing newline character)
 should be cut off from the data before sending or comparing it.
 
-`crlf=yes` forces *header* newlines to become CRLF even if not written so in
-the source file. Note that this makes runtests.pl parse and "guess" what is a
-header and what is not in order to apply the CRLF line endings appropriately.
+`crlf=yes` forces the newlines to become CRLF even if not written so in the
+test.
+
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
 
 For FTP file listings, the `<data>` section is be used *only* if you make sure
 that there has been a CWD done first to a directory named `test-[NUM]` where
 `NUM` is the test case number. Otherwise the ftp server cannot know from which
 test file to load the list content.
 
-### `<dataNUM [crlf="yes"]>`
+### `<dataNUM [crlf="yes|headers"]>`
 
 Send back this contents instead of the `<data>` one. The `NUM` is set by:
 
- - The test number in the request line is >10000 and this is the remainder
-   of [test case number]%10000.
- - The request was HTTP and included digest details, which adds 1000 to `NUM`
- - If an HTTP request is NTLM type-1, it adds 1001 to `NUM`
- - If an HTTP request is NTLM type-3, it adds 1002 to `NUM`
- - If an HTTP request is Basic and `NUM` is already >=1000, it adds 1 to `NUM`
- - If an HTTP request is Negotiate, `NUM` gets incremented by one for each
-   request with Negotiate authorization header on the same test case.
+- The test number in the request line is >10000 and this is the remainder of
+  [test case number]%10000.
+- The request was HTTP and included digest details, which adds 1000 to `NUM`
+- If an HTTP request is NTLM type-1, it adds 1001 to `NUM`
+- If an HTTP request is NTLM type-3, it adds 1002 to `NUM`
+- If an HTTP request is Basic and `NUM` is already >=1000, it adds 1 to `NUM`
+- If an HTTP request is Negotiate, `NUM` gets incremented by one for each
+  request with Negotiate authorization header on the same test case.
 
 Dynamically changing `NUM` in this way allows the test harness to be used to
 test authentication negotiation where several different requests must be sent
@@ -289,15 +318,22 @@ to complete a transfer. The response to each request is found in its own data
 section. Validating the entire negotiation sequence can be done by specifying
 a `datacheck` section.
 
-### `<connect>`
+### `<connect [crlf="yes|headers"]>`
 The connect section is used instead of the 'data' for all CONNECT
 requests. The remainder of the rules for the data section then apply but with
 a connect prefix.
 
+`crlf=yes` forces the newlines to become CRLF even if not written so in the
+test.
+
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
+
 ### `<socks>`
 Address type and address details as logged by the SOCKS proxy.
 
-### `<datacheck [mode="text"] [nonewline="yes"] [crlf="yes"]>`
+### `<datacheck [mode="text"] [nonewline="yes"] [crlf="yes|headers"]>`
 if the data is sent but this is what should be checked afterwards. If
 `nonewline=yes` is set, runtests cuts off the trailing newline from the data
 before comparing with the one actually received by the client.
@@ -305,7 +341,7 @@ before comparing with the one actually received by the client.
 Use the `mode="text"` attribute if the output is in text mode on platforms
 that have a text/binary difference.
 
-### `<datacheckNUM [nonewline="yes"] [mode="text"] [crlf="yes"]>`
+### `<datacheckNUM [nonewline="yes"] [mode="text"] [crlf="yes|headers"]>`
 The contents of numbered `datacheck` sections are appended to the non-numbered
 one.
 
@@ -365,7 +401,7 @@ issue.
 - `auth_required` if this is set and a POST/PUT is made without auth, the
   server does NOT wait for the full request body to get sent
 - `delay: [msecs]` - delay this amount after connection
-- `idle` - do nothing after receiving the request, just "sit idle"
+- `idle` - do nothing after receiving the request, "sit idle"
 - `stream` - continuously send data to the client, never-ending
 - `writedelay: [msecs]` delay this amount between reply packets
 - `skip: [num]` - instructs the server to ignore reading this many bytes from
@@ -416,7 +452,6 @@ What server(s) this test case requires/uses. Available servers:
 - `http-unix`
 - `imap`
 - `mqtt`
-- `none`
 - `pop3`
 - `rtsp`
 - `rtsp-ipv6`
@@ -430,10 +465,12 @@ What server(s) this test case requires/uses. Available servers:
 - `telnet`
 - `tftp`
 
-Give only one per line. This subsection is mandatory (use `none` if no servers
-are required). Servers that require a special server certificate can have the
-PEM certificate filename (found in the `certs` directory) appended to the
-server name separated by a space.
+Give only one per line. If a test does not require any servers, the `<server>`
+subsection should be omitted.
+
+Servers that require a special server certificate can
+have the PEM certificate filename (found in the `certs` directory) appended to
+the server name separated by a space.
 
 ### `<features>`
 A list of features that MUST be present in the client/library for this test to
@@ -455,6 +492,7 @@ Features testable here are:
 - `codeset-utf8`. If the running codeset is UTF-8 capable.
 - `cookies`
 - `crypto`
+- `cygwin`
 - `Debug`
 - `digest`
 - `DoH`
@@ -477,7 +515,7 @@ Features testable here are:
 - `large-size` (size_t is larger than 32-bit)
 - `libssh2`
 - `libssh`
-- `oldlibssh` (versions before 0.9.4)
+- `badlibssh` (libssh configuration incompatible with the test suite)
 - `libz`
 - `local-http`. The HTTP server runs on 127.0.0.1
 - `manual`
@@ -513,7 +551,6 @@ Features testable here are:
 - `wakeup`
 - `win32`
 - `WinIDN`
-- `wolfssh`
 - `wolfssl`
 - `xattr`
 - `zstd`
@@ -552,23 +589,13 @@ Set the given environment variables to the specified value before the actual
 command is run. They are restored back to their former values again after the
 command has been run.
 
-If the variable name has no assignment, no `=`, then that variable is just
-deleted.
+If the variable name has no assignment, no `=`, then that variable is deleted.
 
-### `<command [option="no-q/no-output/no-include/force-output/binary-trace"] [timeout="secs"][delay="secs"][type="perl/shell"]>`
+### `<command [option="no-q/no-output/no-include/no-memdebug/force-output/binary-trace"] [timeout="secs"][delay="secs"][type="perl/shell"]>`
 Command line to run.
 
-Note that the URL that gets passed to the server actually controls what data
-that is returned. The last slash in the URL must be followed by a number. That
-number (N) is used by the test-server to load test case N and return the data
-that is defined within the `<reply><data></data></reply>` section.
-
-If there is no test number found above, the HTTP test server uses the number
-following the last dot in the given hostname (made so that a CONNECT can still
-pass on test number) so that "foo.bar.123" gets treated as test case
-123. Alternatively, if an IPv6 address is provided to CONNECT, the last
-hexadecimal group in the address is used as the test number. For example the
-address "[1234::ff]" would be treated as test case 255.
+If the command spans multiple lines, they are concatenated with a space added
+between them.
 
 Set `type="perl"` to write the test case as a perl script. It implies that
 there is no memory debugging and valgrind gets shut off for this test.
@@ -585,6 +612,9 @@ otherwise written to verify stdout.
 
 Set `option="no-include"` to prevent the test script to slap on the
 `--include` argument.
+
+Set `option="no-memdebug"` to make the test run without the memdebug tracking
+system. For tests that are incompatible - multi-threaded for example.
 
 Set `option="no-q"` avoid using `-q` as the first argument in the curl command
 line.
@@ -606,12 +636,15 @@ parameter is the not negative integer number of seconds for the delay. This
 'delay' attribute is intended for specific test cases, and normally not
 needed.
 
-### `<file name="%LOGDIR/filename" [nonewline="yes"]>`
+### `<file name="%LOGDIR/filename" [nonewline="yes"][crlf="yes"]>`
 This creates the named file with this content before the test case is run,
 which is useful if the test case needs a file to act on.
 
 If `nonewline="yes"` is used, the created file gets the final newline stripped
 off.
+
+`crlf=yes` forces the newlines to become CRLF even if not written so in the
+test.
 
 ### `<file1>`
 1 to 4 can be appended to 'file' to create more files.
@@ -622,11 +655,14 @@ off.
 
 ### `<file4>`
 
-### `<stdin [nonewline="yes"]>`
+### `<stdin [nonewline="yes"][crlf="yes"]>`
 Pass this given data on stdin to the tool.
 
 If `nonewline` is set, we cut off the trailing newline of this given data
 before comparing with the one actually received by the client
+
+`crlf=yes` forces the newlines to become CRLF even if not written so in the
+test.
 
 ## `<disable>`
 
@@ -656,7 +692,7 @@ command exists with a non-zero status code, the test is considered failed.
 A list of directory entries that are checked for after the test has completed
 and that must not exist. A listed entry existing causes the test to fail.
 
-### `<protocol [nonewline="yes"][crlf="yes"]>`
+### `<protocol [nonewline="yes"][crlf="yes|headers"]>`
 
 the protocol dump curl should transmit, if `nonewline` is set, we cut off the
 trailing newline of this given data before comparing with the one actually
@@ -666,26 +702,38 @@ comparisons are made.
 `crlf=yes` forces the newlines to become CRLF even if not written so in the
 test.
 
-### `<proxy [nonewline="yes"][crlf="yes"]>`
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
+
+### `<proxy [nonewline="yes"][crlf="yes|headers"]>`
 
 The protocol dump curl should transmit to an HTTP proxy (when the http-proxy
 server is used), if `nonewline` is set, we cut off the trailing newline of
 this given data before comparing with the one actually sent by the client The
 `<strip>` and `<strippart>` rules are applied before comparisons are made.
 
-### `<stderr [mode="text"] [nonewline="yes"] [crlf="yes"]>`
+### `<stderr [mode="text/warn"] [nonewline="yes"] [crlf="yes|headers"]>`
 This verifies that this data was passed to stderr.
 
 Use the mode="text" attribute if the output is in text mode on platforms that
 have a text/binary difference.
 
+Use the mode="warn" attribute for curl warning output, as it then makes the
+check without newlines and the prefix to better handle that the lines may wrap
+at different points depending on the lengths of the lines and terminal width.
+
 `crlf=yes` forces the newlines to become CRLF even if not written so in the
 test.
+
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
 
 If `nonewline` is set, we cut off the trailing newline of this given data
 before comparing with the one actually received by the client
 
-### `<stdout [mode="text"] [nonewline="yes"] [crlf="yes"] [loadfile="filename"]>`
+### `<stdout [mode="text"] [nonewline="yes"] [crlf="yes|headers"] [loadfile="filename"]>`
 This verifies that this data was passed to stdout.
 
 Use the mode="text" attribute if the output is in text mode on platforms that
@@ -697,6 +745,10 @@ before comparing with the one actually received by the client
 `crlf=yes` forces the newlines to become CRLF even if not written so in the
 test.
 
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
+
 `loadfile="filename"` makes loading the data from an external file.
 
 ### `<limit>`
@@ -707,10 +759,17 @@ that the set limits are not exceeded. Supported limits:
     Allocations: [number of allocation calls]
     Maximum allocated: [maximum concurrent memory allocated]
 
-### `<file name="%LOGDIR/filename" [mode="text"]>`
+### `<file name="%LOGDIR/filename" [mode="text"] [crlf="yes|headers"]>`
 The file's contents must be identical to this after the test is complete. Use
 the mode="text" attribute if the output is in text mode on platforms that have
 a text/binary difference.
+
+`crlf=yes` forces the newlines to become CRLF even if not written so in the
+test.
+
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
 
 ### `<file1>`
 1 to 4 can be appended to 'file' to compare more files.
@@ -747,3 +806,13 @@ should be cut off from the upload data before comparing it.
 
 ### `<valgrind>`
 disable - disables the valgrind log check for this test
+
+### `<dns [host="name"]>`
+
+This specify the input the DNS server is expected to get from curl. Because of
+differences in implementations, this section is sorted automatically before
+compared.
+
+Because of local configurations in machines running tests, there may be
+additional requests sent to `[host].[custom suffix]`. To prevent such requests
+to mess up comparisons, we can set the hostname to check in the `<dns>` tag.

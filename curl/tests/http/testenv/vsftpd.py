@@ -202,7 +202,7 @@ class VsFTPD:
         ]
         if self._with_ssl:
             creds = self.env.get_credentials(self.domain)
-            assert creds  # convince pytype this isn't None
+            assert creds  # convince pytype this is not None
             conf.extend([
                 'ssl_enable=YES',
                 'debug_ssl=YES',
@@ -221,4 +221,4 @@ class VsFTPD:
 
     def get_data_ports(self, r: ExecResult) -> List[int]:
         return [int(m.group(1)) for line in r.trace_lines if
-                (m := re.match(r'.*Connected 2nd connection to .* port (\d+)', line))]
+                (m := re.match(r'.*Established 2nd connection to .* \(\S+ port (\d+)\)', line))]

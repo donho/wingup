@@ -23,33 +23,33 @@
  ***************************************************************************/
 #include "unitcheck.h"
 
-#include "vtls/x509asn1.h"
-
 #if defined(USE_GNUTLS) || defined(USE_SCHANNEL) || defined(USE_MBEDTLS)
+
+#include "vtls/x509asn1.h"
 
 struct test1657_spec {
   CURLcode (*setbuf)(const struct test1657_spec *spec, struct dynbuf *buf);
   size_t n;
-  CURLcode exp_result;
+  CURLcode result_exp;
 };
 
 static CURLcode make1657_nested(const struct test1657_spec *spec,
                                 struct dynbuf *buf)
 {
-  CURLcode r;
+  CURLcode result;
   size_t i;
   unsigned char open_undef[] = { 0x32, 0x80 };
   unsigned char close_undef[] = { 0x00, 0x00 };
 
   for(i = 0; i < spec->n; ++i) {
-    r = curlx_dyn_addn(buf, open_undef, sizeof(open_undef));
-    if(r)
-      return r;
+    result = curlx_dyn_addn(buf, open_undef, sizeof(open_undef));
+    if(result)
+      return result;
   }
   for(i = 0; i < spec->n; ++i) {
-    r = curlx_dyn_addn(buf, close_undef, sizeof(close_undef));
-    if(r)
-      return r;
+    result = curlx_dyn_addn(buf, close_undef, sizeof(close_undef));
+    if(result)
+      return result;
   }
   return CURLE_OK;
 }
@@ -77,15 +77,15 @@ static bool do_test1657(const struct test1657_spec *spec, size_t i,
   }
   in = curlx_dyn_ptr(buf);
   result = Curl_x509_getASN1Element(&elem, in, in + curlx_dyn_len(buf));
-  if(result != spec->exp_result) {
+  if(result != spec->result_exp) {
     curl_mfprintf(stderr, "test %zu: expect result %d, got %d\n",
-                  i, spec->exp_result, result);
+                  i, spec->result_exp, result);
     return FALSE;
   }
   return TRUE;
 }
 
-static CURLcode test_unit1657(char *arg)
+static CURLcode test_unit1657(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -93,7 +93,7 @@ static CURLcode test_unit1657(char *arg)
   bool all_ok = TRUE;
   struct dynbuf dbuf;
 
-  curlx_dyn_init(&dbuf, 32*1024);
+  curlx_dyn_init(&dbuf, 32 * 1024);
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
@@ -114,7 +114,7 @@ static CURLcode test_unit1657(char *arg)
 
 #else
 
-static CURLcode test_unit1657(char *arg)
+static CURLcode test_unit1657(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
   puts("not tested since Curl_x509_getASN1Element() is not built in");

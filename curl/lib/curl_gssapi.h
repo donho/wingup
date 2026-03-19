@@ -23,8 +23,8 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
+
 #include "urldata.h"
 
 #ifdef HAVE_GSSAPI
@@ -47,14 +47,18 @@ OM_uint32 Curl_gss_delete_sec_context(OM_uint32 *min,
                                       gss_ctx_id_t *context_handle,
                                       gss_buffer_t output_token);
 
+#ifdef CURLVERBOSE
 /* Helper to log a GSS-API error status */
 void Curl_gss_log_error(struct Curl_easy *data, const char *prefix,
                         OM_uint32 major, OM_uint32 minor);
-
-/* Provide some definitions missing in old headers */
-#ifdef HAVE_OLD_GSSMIT
-#define GSS_C_NT_HOSTBASED_SERVICE gss_nt_service_name
-#define NCOMPAT 1
+#else
+#define Curl_gss_log_error(data, prefix, major, minor) \
+  do {                                                 \
+    (void)(data);                                      \
+    (void)(prefix);                                    \
+    (void)(major);                                     \
+    (void)(minor);                                     \
+  } while(0)
 #endif
 
 /* Define our privacy and integrity protection values */

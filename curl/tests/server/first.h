@@ -23,9 +23,23 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
+
+/* Test servers are standalone programs that do not use libcurl
+ * library.  For convenience and to ease portability of these servers,
+ * some source code files from the libcurl subdirectory are also used
+ * to build the servers.  In order to achieve proper linkage of these
+ * files on Windows targets it is necessary to build the test servers
+ * with CURL_STATICLIB defined, independently of how libcurl is built.
+ * For other platforms, this macro is a no-op and safe to set.
+ */
+#define CURL_STATICLIB
+
+#define WITHOUT_LIBCURL
+#define CURL_NO_OLDIES
+
 #include "curl_setup.h"
 
-typedef int (*entry_func_t)(int, char **);
+typedef int (*entry_func_t)(int, const char **);
 
 struct entry_s {
   const char *name;
@@ -34,9 +48,7 @@ struct entry_s {
 
 extern const struct entry_s s_entries[];
 
-#ifndef UNDER_CE
 #include <signal.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -52,9 +64,9 @@ extern const struct entry_s s_entries[];
 
 #include <curlx/curlx.h>
 
-/* adjust for old MSVC */
-#if defined(_MSC_VER) && (_MSC_VER < 1900)
-#  define snprintf _snprintf
+#ifdef _WIN32
+#include <curlx/snprintf.h>
+#define snprintf curlx_win32_snprintf
 #endif
 
 #ifdef _WIN32
@@ -82,8 +94,6 @@ enum {
   DOCNUMBER_404        = -1
 };
 
-#include <curl/curl.h> /* for curl_socket_t */
-
 #ifdef USE_UNIX_SOCKETS
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h> /* for sockaddr_un */
@@ -102,8 +112,8 @@ typedef union {
 } srvr_sockaddr_union_t;
 
 /* getpart */
-#define GPE_NO_BUFFER_SPACE -2
-#define GPE_OUT_OF_MEMORY   -1
+#define GPE_NO_BUFFER_SPACE  (-2)
+#define GPE_OUT_OF_MEMORY    (-1)
 #define GPE_OK               0
 #define GPE_END_OF_FILE      1
 
@@ -111,12 +121,9 @@ extern int getpart(char **outbuf, size_t *outlen,
                    const char *main, const char *sub, FILE *stream);
 
 /* utility functions */
-extern char *data_to_hex(char *data, size_t len);
-extern void logmsg(const char *msg, ...);
-extern void loghex(unsigned char *buffer, ssize_t len);
-extern unsigned char byteval(char *value);
+extern void logmsg(const char *msg, ...) CURL_PRINTF(1, 2);
+extern void loghex(const unsigned char *buffer, ssize_t len);
 extern int win32_init(void);
-extern const char *sstrerror(int err);
 extern FILE *test2fopen(long testno, const char *logdir2);
 extern curl_off_t our_getpid(void);
 extern int write_pidfile(const char *filename);
@@ -134,14 +141,13 @@ extern void restore_signal_handlers(bool keep_sigalrm);
 extern int bind_unix_socket(curl_socket_t sock, const char *unix_socket,
                             struct sockaddr_un *sau);
 #endif
-extern unsigned short util_ultous(unsigned long ulnum);
 extern curl_socket_t sockdaemon(curl_socket_t sock,
                                 unsigned short *listenport,
                                 const char *unix_socket,
                                 bool bind_only);
 
 /* global variables */
-static const char *srcpath = "."; /* pointing to the test dir */
+static const char *srcpath = "."; /* pointing to the test directory */
 static const char *pidname = NULL;
 static const char *portname = NULL; /* none by default */
 static const char *serverlogfile = NULL;

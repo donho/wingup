@@ -23,57 +23,52 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
 /*
  * Two FTP uploads, the second with no content sent.
  */
 
-static CURLcode test_lib541(char *URL)
+static CURLcode test_lib541(const char *URL)
 {
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
+  char errbuf[STRERROR_LEN];
   FILE *hd_src;
   int hd;
-  struct_stat file_info;
+  curlx_struct_stat file_info;
 
   if(!libtest_arg2) {
     curl_mfprintf(stderr, "Usage: <url> <file-to-upload>\n");
     return TEST_ERR_USAGE;
   }
 
-  hd_src = fopen(libtest_arg2, "rb");
+  hd_src = curlx_fopen(libtest_arg2, "rb");
   if(!hd_src) {
-    curl_mfprintf(stderr, "fopen failed with error (%d) %s\n",
-                  errno, strerror(errno));
+    curl_mfprintf(stderr, "fopen() failed with error (%d) %s\n",
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
     curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
     return TEST_ERR_MAJOR_BAD; /* if this happens things are major weird */
   }
 
   /* get the file size of the local file */
-#ifdef UNDER_CE
-  hd = stat(libtest_arg2, &file_info);
-#else
-  hd = fstat(fileno(hd_src), &file_info);
-#endif
+  hd = curlx_fstat(fileno(hd_src), &file_info);
   if(hd == -1) {
-    /* can't open file, bail out */
+    /* cannot open file, bail out */
     curl_mfprintf(stderr, "fstat() failed with error (%d) %s\n",
-                  errno, strerror(errno));
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
     curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
-    fclose(hd_src);
+    curlx_fclose(hd_src);
     return TEST_ERR_MAJOR_BAD;
   }
 
   if(!file_info.st_size) {
     curl_mfprintf(stderr, "File %s has zero size!\n", libtest_arg2);
-    fclose(hd_src);
+    curlx_fclose(hd_src);
     return TEST_ERR_MAJOR_BAD;
   }
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
-    fclose(hd_src);
+    curlx_fclose(hd_src);
     return TEST_ERR_MAJOR_BAD;
   }
 
@@ -82,7 +77,7 @@ static CURLcode test_lib541(char *URL)
   if(!curl) {
     curl_mfprintf(stderr, "curl_easy_init() failed\n");
     curl_global_cleanup();
-    fclose(hd_src);
+    curlx_fclose(hd_src);
     return TEST_ERR_MAJOR_BAD;
   }
 
@@ -98,22 +93,22 @@ static CURLcode test_lib541(char *URL)
   /* now specify which file to upload */
   test_setopt(curl, CURLOPT_READDATA, hd_src);
 
-  /* Now run off and do what you've been told! */
-  res = curl_easy_perform(curl);
-  if(res)
+  /* Now run off and do what you have been told! */
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
   /* and now upload the exact same again, but without rewinding so it already
      is at end of file */
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
   /* close the local file */
-  fclose(hd_src);
+  curlx_fclose(hd_src);
 
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

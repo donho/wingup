@@ -13,8 +13,8 @@ big and complicated, we should split them into smaller and testable ones.
 
 `./configure --enable-debug` is required for the unit tests to build. To
 enable unit tests, there is a separate static libcurl built that is used
-exclusively for linking unit test programs. Just build everything as normal,
-and then you can run the unit test cases as well.
+exclusively for linking unit test programs. Build everything as normal, and
+then you can run the unit test cases as well.
 
 ## Run Unit Tests
 
@@ -47,9 +47,9 @@ For the actual C file, here's a simple example:
 ~~~c
     #include "unitcheck.h"
 
-    #include "a libcurl header.h" /* from the lib dir */
+    #include "a libcurl header.h" /* from the lib directory */
 
-    static CURLcode test_unit9998(char *arg)
+    static CURLcode test_unit9998(const char *arg)
     {
       UNITTEST_BEGIN_SIMPLE
 
@@ -68,7 +68,7 @@ Here's an example using optional initialization and cleanup:
 ~~~c
     #include "unitcheck.h"
 
-    #include "a libcurl header.h" /* from the lib dir */
+    #include "a libcurl header.h" /* from the lib directory */
 
     static CURLcode t9999_setup(void)
     {
@@ -81,7 +81,7 @@ Here's an example using optional initialization and cleanup:
       /* done before shutting down and exiting */
     }
 
-    static CURLcode test_unit9999(char *arg)
+    static CURLcode test_unit9999(const char *arg)
     {
       UNITTEST_BEGIN(t9999_setup())
 

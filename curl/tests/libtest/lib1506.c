@@ -23,27 +23,25 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
-static CURLcode test_lib1506(char *URL)
+static CURLcode test_lib1506(const char *URL)
 {
-  CURLcode res = CURLE_OK;
-  CURL *curl[NUM_HANDLES] = {0};
+  CURLcode result = CURLE_OK;
+  CURL *curl[NUM_HANDLES] = { 0 };
   int running;
-  CURLM *m = NULL;
+  CURLM *multi = NULL;
   size_t i;
   char target_url[256];
   char dnsentry[256];
   struct curl_slist *slist = NULL, *slist2;
-  char *port = libtest_arg3;
-  char *address = libtest_arg2;
+  const char *port = libtest_arg3;
+  const char *address = libtest_arg2;
 
   (void)URL;
 
   /* Create fake DNS entries for serverX.example.com for all handles */
   for(i = 0; i < CURL_ARRAYSIZE(curl); i++) {
-    curl_msnprintf(dnsentry, sizeof(dnsentry), "server%d.example.com:%s:%s",
-                   (int)i + 1, port, address);
+    curl_msnprintf(dnsentry, sizeof(dnsentry), "server%zu.example.com:%s:%s",
+                   i + 1, port, address);
     curl_mprintf("%s\n", dnsentry);
     slist2 = curl_slist_append(slist, dnsentry);
     if(!slist2) {
@@ -57,9 +55,9 @@ static CURLcode test_lib1506(char *URL)
 
   global_init(CURL_GLOBAL_ALL);
 
-  multi_init(m);
+  multi_init(multi);
 
-  multi_setopt(m, CURLMOPT_MAXCONNECTS, 3L);
+  multi_setopt(multi, CURLMOPT_MAXCONNECTS, 3L);
 
   /* get each easy handle */
   for(i = 0; i < CURL_ARRAYSIZE(curl); i++) {
@@ -67,8 +65,8 @@ static CURLcode test_lib1506(char *URL)
     easy_init(curl[i]);
     /* specify target */
     curl_msnprintf(target_url, sizeof(target_url),
-                   "http://server%d.example.com:%s/path/1506%04i",
-                   (int)i + 1, port, (int)i + 1);
+                   "http://server%zu.example.com:%s/path/1506%04zu",
+                   i + 1, port, i + 1);
     target_url[sizeof(target_url) - 1] = '\0';
     easy_setopt(curl[i], CURLOPT_URL, target_url);
     /* go verbose */
@@ -83,7 +81,7 @@ static CURLcode test_lib1506(char *URL)
 
   for(i = 0; i < CURL_ARRAYSIZE(curl); i++) {
     /* add handle to multi */
-    multi_add_handle(m, curl[i]);
+    multi_add_handle(multi, curl[i]);
 
     for(;;) {
       struct timeval interval;
@@ -93,7 +91,7 @@ static CURLcode test_lib1506(char *URL)
       interval.tv_sec = 1;
       interval.tv_usec = 0;
 
-      multi_perform(m, &running);
+      multi_perform(multi, &running);
 
       abort_on_test_timeout();
 
@@ -104,7 +102,7 @@ static CURLcode test_lib1506(char *URL)
       FD_ZERO(&wr);
       FD_ZERO(&exc);
 
-      multi_fdset(m, &rd, &wr, &exc, &maxfd);
+      multi_fdset(multi, &rd, &wr, &exc, &maxfd);
 
       /* At this point, maxfd is guaranteed to be greater or equal than -1. */
 
@@ -120,14 +118,14 @@ test_cleanup:
   /* proper cleanup sequence - type PB */
 
   for(i = 0; i < CURL_ARRAYSIZE(curl); i++) {
-    curl_multi_remove_handle(m, curl[i]);
+    curl_multi_remove_handle(multi, curl[i]);
     curl_easy_cleanup(curl[i]);
   }
 
   curl_slist_free_all(slist);
 
-  curl_multi_cleanup(m);
+  curl_multi_cleanup(multi);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

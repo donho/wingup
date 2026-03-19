@@ -23,18 +23,17 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
-static CURLcode test_lib544(char *URL)
+static CURLcode test_lib544(const char *URL)
 {
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   static const char teststring_init[] = {
     'T', 'h', 'i', 's', '\0', ' ', 'i', 's', ' ', 't', 'e', 's', 't', ' ',
     'b', 'i', 'n', 'a', 'r', 'y', ' ', 'd', 'a', 't', 'a', ' ',
     'w', 'i', 't', 'h', ' ', 'a', 'n', ' ',
-    'e', 'm', 'b', 'e', 'd', 'd', 'e', 'd', ' ', 'N', 'U', 'L'};
+    'e', 'm', 'b', 'e', 'd', 'd', 'e', 'd', ' ', 'N', 'U', 'L'
+  };
 
   char teststring[sizeof(teststring_init)];
 
@@ -56,7 +55,7 @@ static CURLcode test_lib544(char *URL)
   test_setopt(curl, CURLOPT_URL, URL);
 
   if(testnum == 545)
-    test_setopt(curl, CURLOPT_POSTFIELDSIZE, (long) sizeof(teststring));
+    test_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)sizeof(teststring));
 
   test_setopt(curl, CURLOPT_COPYPOSTFIELDS, teststring);
 
@@ -64,18 +63,18 @@ static CURLcode test_lib544(char *URL)
   test_setopt(curl, CURLOPT_HEADER, 1L); /* include header */
 
   /* Update the original data to detect non-copy. */
-  strcpy(teststring, "FAIL");
+  curlx_strcopy(teststring, sizeof(teststring), "FAIL", strlen("FAIL"));
 
   {
-    CURL *handle2;
-    handle2 = curl_easy_duphandle(curl);
+    CURL *curl2;
+    curl2 = curl_easy_duphandle(curl);
     curl_easy_cleanup(curl);
 
-    curl = handle2;
+    curl = curl2;
   }
 
   /* Now, this is a POST request with binary 0 embedded in POST data. */
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
@@ -83,5 +82,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

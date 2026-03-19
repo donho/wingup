@@ -23,8 +23,6 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
 struct t554_WriteThis {
   const char *readptr;
   size_t sizeleft;
@@ -34,7 +32,7 @@ static size_t t554_read_cb(char *ptr, size_t size, size_t nmemb, void *userp)
 {
   struct t554_WriteThis *pooh = (struct t554_WriteThis *)userp;
 
-  if(size*nmemb < 1)
+  if(size * nmemb < 1)
     return 0;
 
   if(pooh->sizeleft) {
@@ -56,13 +54,13 @@ static size_t t587_read_cb(char *ptr, size_t size, size_t nmemb, void *userp)
   return CURL_READFUNC_ABORT;
 }
 
-static CURLcode t554_test_once(char *URL, bool oldstyle)
+static CURLcode t554_test_once(const char *URL, bool oldstyle)
 {
   static const char testdata[] =
     "this is what we post to the silly web server\n";
 
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   CURLFORMcode formrc;
 
   struct curl_httppost *formpost = NULL;
@@ -90,12 +88,12 @@ static CURLcode t554_test_once(char *URL, bool oldstyle)
                           CURLFORM_COPYNAME, "sendfile alternative",
                           CURLFORM_STREAM, &pooh,
                           CURLFORM_CONTENTLEN, (curl_off_t)pooh.sizeleft,
-                          CURLFORM_FILENAME, "file name 2",
+                          CURLFORM_FILENAME, "filename 2 ",
                           CURLFORM_END);
   }
 
   if(formrc)
-    curl_mprintf("curl_formadd(1) = %d\n", (int)formrc);
+    curl_mprintf("curl_formadd(1) = %d\n", formrc);
 
   /* Now add the same data with another name and make it not look like
      a file upload but still using the callback */
@@ -112,7 +110,7 @@ static CURLcode t554_test_once(char *URL, bool oldstyle)
                         CURLFORM_END);
 
   if(formrc)
-    curl_mprintf("curl_formadd(2) = %d\n", (int)formrc);
+    curl_mprintf("curl_formadd(2) = %d\n", formrc);
 
   /* Fill in the filename field */
   formrc = curl_formadd(&formpost,
@@ -121,7 +119,7 @@ static CURLcode t554_test_once(char *URL, bool oldstyle)
                         CURLFORM_COPYCONTENTS, "postit2.c",
                         CURLFORM_END);
   if(formrc)
-    curl_mprintf("curl_formadd(3) = %d\n", (int)formrc);
+    curl_mprintf("curl_formadd(3) = %d\n", formrc);
 
   /* Fill in a submit field too */
   formrc = curl_formadd(&formpost,
@@ -132,17 +130,17 @@ static CURLcode t554_test_once(char *URL, bool oldstyle)
                         CURLFORM_END);
 
   if(formrc)
-    curl_mprintf("curl_formadd(4) = %d\n", (int)formrc);
+    curl_mprintf("curl_formadd(4) = %d\n", formrc);
 
   formrc = curl_formadd(&formpost, &lastptr,
                         CURLFORM_COPYNAME, "somename",
                         CURLFORM_BUFFER, "somefile.txt",
                         CURLFORM_BUFFERPTR, "blah blah",
-                        CURLFORM_BUFFERLENGTH, (long)9,
+                        CURLFORM_BUFFERLENGTH, 9L,
                         CURLFORM_END);
 
   if(formrc)
-    curl_mprintf("curl_formadd(5) = %d\n", (int)formrc);
+    curl_mprintf("curl_formadd(5) = %d\n", formrc);
 
   curl = curl_easy_init();
   if(!curl) {
@@ -178,8 +176,8 @@ static CURLcode t554_test_once(char *URL, bool oldstyle)
   /* include headers in the output */
   test_setopt(curl, CURLOPT_HEADER, 1L);
 
-  /* Perform the request, res will get the return code */
-  res = curl_easy_perform(curl);
+  /* Perform the request, result will get the return code */
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
@@ -189,23 +187,23 @@ test_cleanup:
   /* now cleanup the formpost chain */
   curl_formfree(formpost);
 
-  return res;
+  return result;
 }
 
-static CURLcode test_lib554(char *URL)
+static CURLcode test_lib554(const char *URL)
 {
-  CURLcode res;
+  CURLcode result;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
     return TEST_ERR_MAJOR_BAD;
   }
 
-  res = t554_test_once(URL, TRUE); /* old */
-  if(!res)
-    res = t554_test_once(URL, FALSE); /* new */
+  result = t554_test_once(URL, TRUE); /* old */
+  if(!result)
+    result = t554_test_once(URL, FALSE); /* new */
 
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

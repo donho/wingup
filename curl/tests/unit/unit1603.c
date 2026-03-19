@@ -25,23 +25,21 @@
 
 #include "hash.h"
 
-#include "memdebug.h" /* LAST include file */
-
 static const size_t slots = 3;
 
 static void t1603_mydtor(void *p)
 {
   /* Data are statically allocated */
- (void)p; /* unused */
+  (void)p;
 }
 
 static size_t elem_dtor_calls;
 
 static void my_elem_dtor(void *key, size_t key_len, void *p)
 {
-  (void)p; /* unused */
-  (void)key; /* unused */
-  (void)key_len; /* unused */
+  (void)p;
+  (void)key;
+  (void)key_len;
   ++elem_dtor_calls;
 }
 
@@ -57,7 +55,7 @@ static void t1603_stop(struct Curl_hash *hash_static)
   Curl_hash_destroy(hash_static);
 }
 
-static CURLcode test_unit1603(char *arg)
+static CURLcode test_unit1603(const char *arg)
 {
   struct Curl_hash hash_static;
 
@@ -68,7 +66,7 @@ static CURLcode test_unit1603(char *arg)
   char key3[] = "key3";
   char key4[] = "key4";
   char notakey[] = "notakey";
-  char *nodep;
+  const char *nodep;
   int rc;
 
   /* Ensure the key hashes are as expected in order to test both hash

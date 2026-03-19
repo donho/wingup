@@ -22,37 +22,34 @@
 #
 ###########################################################################
 
-# Get BUNDLE, FIRST_C, FIRST_H, UTILS_C, UTILS_H, CURLX_C, TESTS_C variables
+# Get BUNDLE, FIRST_C, FIRST_H, UTILS_C, UTILS_H, CURLX_C, TOOLX_C, TESTS_C variables
 curl_transform_makefile_inc("Makefile.inc" "${CMAKE_CURRENT_BINARY_DIR}/Makefile.inc.cmake")
 include("${CMAKE_CURRENT_BINARY_DIR}/Makefile.inc.cmake")
 
+if(_CURL_TESTS_CONCAT)
+  set(_mk_unity_extra "--concat" "-I${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 add_custom_command(OUTPUT "${BUNDLE}.c"
-  COMMAND ${PERL_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/mk-unity.pl"
-    --include ${UTILS_C} ${CURLX_C} --test ${TESTS_C} > "${BUNDLE}.c"
+  COMMAND ${PERL_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/mk-unity.pl" ${_mk_unity_extra}
+    --include ${UTILS_C} ${CURLX_C} ${TOOLX_C} --test ${TESTS_C} > "${BUNDLE}.c"
   DEPENDS
     "${PROJECT_SOURCE_DIR}/scripts/mk-unity.pl" "${CMAKE_CURRENT_SOURCE_DIR}/Makefile.inc"
-    ${FIRST_C} ${UTILS_C} ${CURLX_C} ${TESTS_C}
+    ${FIRST_C} ${FIRST_H} ${UTILS_C} ${CURLX_C} ${TOOLX_C} ${TESTS_C}
   VERBATIM)
 
 add_executable(${BUNDLE} EXCLUDE_FROM_ALL "${BUNDLE}.c")
-add_dependencies(testdeps ${BUNDLE})
-target_link_libraries(${BUNDLE} ${CURL_LIBS})
+add_dependencies(tt ${BUNDLE})
+target_link_libraries(${BUNDLE} ${CURL_NETWORK_AND_TIME_LIBS})
 target_include_directories(${BUNDLE} PRIVATE
   "${PROJECT_BINARY_DIR}/lib"            # for "curl_config.h"
   "${PROJECT_SOURCE_DIR}/lib"            # for "curl_setup.h", curlx
+  "${PROJECT_SOURCE_DIR}/src"            # for toolx
   "${CMAKE_CURRENT_SOURCE_DIR}"          # for the generated bundle source to find included test sources
 )
-set_property(TARGET ${BUNDLE} APPEND PROPERTY COMPILE_DEFINITIONS "WITHOUT_LIBCURL")
-set_property(TARGET ${BUNDLE} APPEND PROPERTY COMPILE_DEFINITIONS "CURL_NO_OLDIES")
-# Test servers simply are standalone programs that do not use libcurl
-# library.  For convenience and to ease portability of these servers,
-# some source code files from the libcurl subdirectory are also used
-# to build the servers.  In order to achieve proper linkage of these
-# files on Windows targets it is necessary to build the test servers
-# with CURL_STATICLIB defined, independently of how libcurl is built.
-if(WIN32)
-  set_property(TARGET ${BUNDLE} APPEND PROPERTY COMPILE_DEFINITIONS "CURL_STATICLIB")
-endif()
-set_target_properties(${BUNDLE} PROPERTIES OUTPUT_NAME "${BUNDLE}" PROJECT_LABEL "Test ${BUNDLE}" UNITY_BUILD OFF C_CLANG_TIDY "")
+set_target_properties(${BUNDLE} PROPERTIES OUTPUT_NAME "${BUNDLE}" PROJECT_LABEL "Test ${BUNDLE}" UNITY_BUILD OFF)
 
-curl_add_clang_tidy_test_target("${BUNDLE}-clang-tidy" ${BUNDLE} ${FIRST_C} ${UTILS_C} ${TESTS_C})
+if(NOT _CURL_TESTS_CONCAT)
+  set_target_properties(${BUNDLE} PROPERTIES C_CLANG_TIDY "")
+  curl_add_clang_tidy_test_target("${BUNDLE}-clang-tidy" ${BUNDLE} ${FIRST_C} ${UTILS_C} ${TESTS_C})
+endif()

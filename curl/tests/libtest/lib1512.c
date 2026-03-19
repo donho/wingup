@@ -30,19 +30,17 @@
 
 #include "first.h"
 
-#include "memdebug.h"
-
-static CURLcode test_lib1512(char *URL)
+static CURLcode test_lib1512(const char *URL)
 {
-  CURLcode res = CURLE_OK;
-  CURL *curl[2] = {NULL, NULL};
-  char *port = libtest_arg3;
-  char *address = libtest_arg2;
+  CURLcode result = CURLE_OK;
+  CURL *curl[2] = { NULL, NULL };
+  const char *port = libtest_arg3;
+  const char *address = libtest_arg2;
   char dnsentry[256];
   struct curl_slist *slist = NULL;
   size_t i;
   char target_url[256];
-  (void)URL; /* URL is setup in the code */
+  (void)URL;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
@@ -60,8 +58,8 @@ static CURLcode test_lib1512(char *URL)
     easy_init(curl[i]);
     /* specify target */
     curl_msnprintf(target_url, sizeof(target_url),
-                   "http://server.example.curl:%s/path/1512%04i",
-                   port, (int)i + 1);
+                   "http://server.example.curl:%s/path/1512%04zu",
+                   port, i + 1);
     target_url[sizeof(target_url) - 1] = '\0';
     easy_setopt(curl[i], CURLOPT_URL, target_url);
     /* go verbose */
@@ -76,9 +74,9 @@ static CURLcode test_lib1512(char *URL)
   easy_setopt(curl[0], CURLOPT_RESOLVE, slist);
 
   /* run each transfer */
-  for(i = 0; (i < CURL_ARRAYSIZE(curl)) && !res; i++) {
-    res = curl_easy_perform(curl[i]);
-    if(res)
+  for(i = 0; (i < CURL_ARRAYSIZE(curl)) && !result; i++) {
+    result = curl_easy_perform(curl[i]);
+    if(result)
       goto test_cleanup;
   }
 
@@ -89,5 +87,5 @@ test_cleanup:
   curl_slist_free_all(slist);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

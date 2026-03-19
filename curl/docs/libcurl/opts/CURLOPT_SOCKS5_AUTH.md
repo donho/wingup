@@ -35,7 +35,7 @@ password with the CURLOPT_PROXYUSERPWD(3) option.
 
 # DEFAULT
 
-CURLAUTH_BASIC|CURLAUTH_GSSAPI
+CURLAUTH_BASIC | CURLAUTH_GSSAPI
 
 # %PROTOCOLS%
 
@@ -52,13 +52,18 @@ int main(void)
     curl_easy_setopt(curl, CURLOPT_PROXY, "socks5://user:pass@myproxy.com");
 
     /* enable username/password authentication only */
-    curl_easy_setopt(curl, CURLOPT_SOCKS5_AUTH, (long)CURLAUTH_BASIC);
+    curl_easy_setopt(curl, CURLOPT_SOCKS5_AUTH, CURLAUTH_BASIC);
 
     /* Perform the request */
     curl_easy_perform(curl);
   }
 }
 ~~~
+
+# HISTORY
+
+**CURLAUTH_*** macros became `long` types in 7.26.0, prior to this version
+a `long` cast was necessary when passed to curl_easy_setopt(3).
 
 # %AVAILABILITY%
 

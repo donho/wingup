@@ -23,25 +23,20 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
 
-#ifdef CURL_DISABLE_PROXY
-#define Curl_SOCKS4(a,b,c,d,e) CURLE_NOT_BUILT_IN
-#define Curl_SOCKS5(a,b,c,d,e,f) CURLE_NOT_BUILT_IN
-#define Curl_SOCKS_getsock(x,y,z) 0
-#else
+#ifndef CURL_DISABLE_PROXY
 /*
  * Helper read-from-socket functions. Does the same as Curl_read() but it
  * blocks until all bytes amount of buffersize will be read. No more, no less.
  *
  * This is STUPID BLOCKING behavior
  */
-int Curl_blockread_all(struct Curl_cfilter *cf,
-                       struct Curl_easy *data,
-                       char *buf,
-                       size_t blen,
-                       size_t *pnread);
+CURLcode Curl_blockread_all(struct Curl_cfilter *cf,
+                            struct Curl_easy *data,
+                            char *buf,
+                            size_t blen,
+                            size_t *pnread);
 
 #if defined(HAVE_GSSAPI) || defined(USE_WINDOWS_SSPI)
 /*
@@ -56,6 +51,6 @@ CURLcode Curl_cf_socks_proxy_insert_after(struct Curl_cfilter *cf_at,
 
 extern struct Curl_cftype Curl_cft_socks_proxy;
 
-#endif /* CURL_DISABLE_PROXY */
+#endif /* !CURL_DISABLE_PROXY */
 
-#endif  /* HEADER_CURL_SOCKS_H */
+#endif /* HEADER_CURL_SOCKS_H */

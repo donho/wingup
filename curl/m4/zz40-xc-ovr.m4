@@ -393,7 +393,7 @@ done
 IFS=$xc_tst_prev_IFS
 xc_tst_dirs_sem=`expr "$xc_tst_dirs_sem" : '.*'`
 
-if test $xc_tst_dirs_sem -eq $xc_tst_dirs_col; then
+if test "$xc_tst_dirs_sem" -eq "$xc_tst_dirs_col"; then
   # When both counting methods give the same result we do not want to
   # chose one over the other, and consider auto-detection not possible.
   if test -z "$PATH_SEPARATOR"; then
@@ -404,13 +404,13 @@ if test $xc_tst_dirs_sem -eq $xc_tst_dirs_col; then
   fi
 else
   # Separator with the greater directory count is the auto-detected one.
-  if test $xc_tst_dirs_sem -gt $xc_tst_dirs_col; then
+  if test "$xc_tst_dirs_sem" -gt "$xc_tst_dirs_col"; then
     xc_tst_auto_separator=';'
   else
     xc_tst_auto_separator=':'
   fi
   if test -z "$PATH_SEPARATOR"; then
-    # Simply use the auto-detected one when not already set.
+    # Use the auto-detected one when not already set.
     PATH_SEPARATOR=$xc_tst_auto_separator
   elif test "x$PATH_SEPARATOR" != "x$xc_tst_auto_separator"; then
     echo "$xc_msg_warn 'PATH_SEPARATOR' does not match auto-detected one." >&2
@@ -448,7 +448,7 @@ dnl -------------------------------------------------
 dnl Public macro.
 dnl
 dnl This macro emits shell code which does some
-dnl very basic checks related with the availability
+dnl basic checks related with the availability
 dnl of some commands and utilities needed to allow
 dnl configure script bootstrapping itself when using
 dnl these to figure out other settings. Also emits
@@ -602,7 +602,7 @@ dnl overrides the auto-detected one.
 dnl
 dnl Strictly speaking the check is done in two steps. The
 dnl first, which does the actual check, takes place in
-dnl XC_CONFIGURE_PREAMBLE macro and happens very early in
+dnl XC_CONFIGURE_PREAMBLE macro and happens early in
 dnl generated configure script. The second one shows and
 dnl logs the result of the check into config.log at a later
 dnl configure stage. Placement of this second stage in

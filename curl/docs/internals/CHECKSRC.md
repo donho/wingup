@@ -76,7 +76,8 @@ warnings are:
 
 - `EXCLAMATIONSPACE`: space found after exclamations mark
 
-- `FOPENMODE`: `fopen()` needs a macro for the mode string, use it
+- `FOPENMODE`: `curlx_fopen()`, `curlx_freopen()` need a macro for the mode
+  string, use it
 
 - `INDENTATION`: detected a wrong start column for code. Note that this
    warning only checks some specific places and can certainly miss many bad
@@ -106,7 +107,7 @@ warnings are:
   `sizeof(int)` style.
 
 - `SNPRINTF` - Found use of `snprintf()`. Since we use an internal replacement
-   with a different return code etc, we prefer `msnprintf()`.
+   with a different return code etc, we prefer `curl_msnprintf()`.
 
 - `SPACEAFTERPAREN`: there was a space after open parenthesis, `( text`.
 
@@ -130,11 +131,11 @@ warnings are:
 
 ### Extended warnings
 
-Some warnings are quite computationally expensive to perform, so they are
-turned off by default. To enable these warnings, place a `.checksrc` file in
-the directory where they should be activated with commands to enable the
-warnings you are interested in. The format of the file is to enable one
-warning per line like so: `enable <EXTENDEDWARNING>`
+Some warnings are computationally expensive to perform, so they are turned off
+by default. To enable these warnings, place a `.checksrc` file in the directory
+where they should be activated with commands to enable the warnings you are
+interested in. The format of the file is to enable one warning per line like
+so: `enable <EXTENDEDWARNING>`
 
 Currently these are the extended warnings which can be enabled:
 
@@ -171,8 +172,8 @@ This ignores the warning for overly long lines until it is re-enabled with:
 If the enabling is not performed before the end of the file, it is enabled
 again automatically for the next file.
 
-You can also opt to ignore just N violations so that if you have a single long
-line you just cannot shorten and is agreed to be fine anyway:
+You can also opt to ignore N violations so that if you have a single long line
+you cannot shorten and is agreed to be fine anyway:
 
     /* !checksrc! disable LONGLINE 1 */
 

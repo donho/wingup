@@ -23,7 +23,10 @@
 #
 ###########################################################################
 
-# provide all dir names to scan on the cmdline
+# provide all directory names to scan on the command-line
+
+use strict;
+use warnings;
 
 sub convert {
     my ($dir)=@_;

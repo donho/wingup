@@ -23,42 +23,32 @@
  ***************************************************************************/
 #include "unitcheck.h"
 
+#if defined(_WIN32) || defined(MSDOS)
+
 #include "tool_cfgable.h"
 #include "tool_doswin.h"
 
-#include "memdebug.h" /* LAST include file */
-
-#if defined(_WIN32) || defined(MSDOS)
-static char *getflagstr(int flags)
+static void getflagstr(char *buf, size_t len, int flags)
 {
-  char *buf = malloc(256);
-  if(buf) {
-    msnprintf(buf, 256, "%s,%s",
-              ((flags & SANITIZE_ALLOW_PATH) ?
-               "SANITIZE_ALLOW_PATH" : ""),
-              ((flags & SANITIZE_ALLOW_RESERVED) ?
-               "SANITIZE_ALLOW_RESERVED" : ""));
-  }
-  return buf;
+  curl_msnprintf(buf, len, "%s,%s",
+                 ((flags & SANITIZE_ALLOW_PATH) ?
+                  "SANITIZE_ALLOW_PATH" : ""),
+                 ((flags & SANITIZE_ALLOW_RESERVED) ?
+                  "SANITIZE_ALLOW_RESERVED" : ""));
 }
 
-static char *getcurlcodestr(int cc)
+static void getcurlcodestr(char *buf, size_t len, int cc)
 {
-  char *buf = malloc(256);
-  if(buf) {
-    msnprintf(buf, 256, "%s (%d)",
-              (cc == SANITIZE_ERR_OK ? "SANITIZE_ERR_OK" :
-               cc == SANITIZE_ERR_BAD_ARGUMENT ? "SANITIZE_ERR_BAD_ARGUMENT" :
-               cc == SANITIZE_ERR_INVALID_PATH ? "SANITIZE_ERR_INVALID_PATH" :
-               cc == SANITIZE_ERR_OUT_OF_MEMORY ? "SANITIZE_ERR_OUT_OF_MEMORY":
-               "unexpected error code - add name"),
-              cc);
-  }
-  return buf;
+  curl_msnprintf(buf, len, "%s (%d)",
+             (cc == SANITIZE_ERR_OK ? "SANITIZE_ERR_OK" :
+              cc == SANITIZE_ERR_BAD_ARGUMENT ? "SANITIZE_ERR_BAD_ARGUMENT" :
+              cc == SANITIZE_ERR_INVALID_PATH ? "SANITIZE_ERR_INVALID_PATH" :
+              cc == SANITIZE_ERR_OUT_OF_MEMORY ? "SANITIZE_ERR_OUT_OF_MEMORY" :
+              "unexpected error code - add name"), cc);
 }
 #endif
 
-static CURLcode test_tool1604(char *arg)
+static CURLcode test_tool1604(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -181,18 +171,6 @@ static CURLcode test_tool1604(char *arg)
     { "COM56", 0,
       "COM56", SANITIZE_ERR_OK
     },
-    /* At the moment we expect a maximum path length of 259. I assume MS-DOS
-       has variable max path lengths depending on compiler that are shorter
-       so currently these "good" truncate tests will not run on MS-DOS */
-    { "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-      "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
-      "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
-      "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
-      "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
-      "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-        0,
-      NULL, SANITIZE_ERR_INVALID_PATH
-    },
     { NULL, 0,
       NULL, SANITIZE_ERR_BAD_ARGUMENT
     },
@@ -202,9 +180,12 @@ static CURLcode test_tool1604(char *arg)
 
   for(i = 0; i < CURL_ARRAYSIZE(data); ++i) {
     char *output = NULL;
-    char *flagstr = NULL;
-    char *received_ccstr = NULL;
-    char *expected_ccstr = NULL;
+    char flagstr[256];
+    char receivedstr[256];
+    char expectedstr[256];
+    const char *flg = flagstr;
+    const char *rec = receivedstr;
+    const char *exp = expectedstr;
     SANITIZEcode res;
 
     res = sanitize_file_name(&output, data[i].input, data[i].flags);
@@ -213,42 +194,39 @@ static CURLcode test_tool1604(char *arg)
        ((!output && !data[i].expected_output) ||
         (output && data[i].expected_output &&
          !strcmp(output, data[i].expected_output)))) { /* OK */
-      free(output);
+      curlx_free(output);
       continue;
     }
 
-    flagstr = getflagstr(data[i].flags);
-    abort_unless(flagstr, "out of memory");
-    received_ccstr = getcurlcodestr(res);
-    abort_unless(received_ccstr, "out of memory");
-    expected_ccstr = getcurlcodestr(data[i].expected_result);
-    abort_unless(expected_ccstr, "out of memory");
+    getflagstr(flagstr, sizeof(flagstr), data[i].flags);
+    abort_unless(flg, "out of memory");
+    getcurlcodestr(receivedstr, sizeof(receivedstr), res);
+    abort_unless(rec, "out of memory");
+    getcurlcodestr(expectedstr, sizeof(expectedstr), data[i].expected_result);
+    abort_unless(exp, "out of memory");
 
     unitfail++;
-    fprintf(stderr, "\n"
-            "%s:%d sanitize_file_name failed.\n"
-            "input: %s\n"
-            "flags: %s\n"
-            "output: %s\n"
-            "result: %s\n"
-            "expected output: %s\n"
-            "expected result: %s\n",
-            __FILE__, __LINE__,
-            data[i].input,
-            flagstr,
-            (output ? output : "(null)"),
-            received_ccstr,
-            (data[i].expected_output ? data[i].expected_output : "(null)"),
-            expected_ccstr);
+    curl_mfprintf(stderr, "\n"
+                  "%s:%d sanitize_file_name failed.\n"
+                  "input: %s\n"
+                  "flags: %s\n"
+                  "output: %s\n"
+                  "result: %s\n"
+                  "expected output: %s\n"
+                  "expected result: %s\n",
+                  __FILE__, __LINE__,
+                  data[i].input,
+                  flagstr,
+                  output ? output : "(null)",
+                  receivedstr,
+                  data[i].expected_output ? data[i].expected_output : "(null)",
+                  expectedstr);
 
-    free(output);
-    free(flagstr);
-    free(received_ccstr);
-    free(expected_ccstr);
+    curlx_free(output);
   }
   /* END sanitize_file_name */
 #else
-  fprintf(stderr, "Skipped test not for this platform\n");
+  curl_mfprintf(stderr, "Skipped test not for this platform\n");
 #endif /* _WIN32 || MSDOS */
 
   UNITTEST_END_SIMPLE

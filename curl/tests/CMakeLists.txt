@@ -29,18 +29,23 @@ mark_as_advanced(TEST_NGHTTPX)
 # Consumed variables: TEST_NGHTTPX
 configure_file("config.in" "${CMAKE_CURRENT_BINARY_DIR}/config" @ONLY)
 
-add_custom_target(testdeps)
+add_custom_target(tt)
 if(BUILD_CURL_EXE)
-  add_dependencies(testdeps curlinfo)
+  add_dependencies(tt "curlinfo")
+endif()
+if(CURL_BUILD_EVERYTHING)
+  set_target_properties(tt PROPERTIES EXCLUDE_FROM_ALL FALSE)
 endif()
 
 if(CURL_CLANG_TIDY)
   add_custom_target(tests-clang-tidy)
-  add_dependencies(testdeps tests-clang-tidy)
+  add_dependencies(tt tests-clang-tidy)
 endif()
 
+add_custom_target(testdeps)
+add_dependencies(testdeps "tt")
+
 add_subdirectory(http)
-add_subdirectory(client)
 add_subdirectory(server)
 add_subdirectory(libtest)
 add_subdirectory(tunit)
@@ -57,7 +62,22 @@ function(curl_add_runtests _targetname _test_flags)
   # This avoids: GNU Make doing a slow re-evaluation of all targets and
   # skipping them, MSBuild doing a re-evaluation, and actually rebuilding them.
   if(NOT _targetname STREQUAL "test-ci")
-    set(_depends "testdeps")
+    if(BUILD_CURL_EXE)
+      list(APPEND _depends "${EXE_NAME}")
+    endif()
+    list(APPEND _depends "testdeps")
+  endif()
+  set(_setenvs "")
+  if(CMAKE_CONFIGURATION_TYPES)
+    list(APPEND _setenvs "CURL_DIRSUFFIX=$<CONFIG>")
+  endif()
+  if(WIN32 AND NOT CMAKE_HOST_WIN32)
+    list(APPEND _setenvs "CURL_TEST_EXE_EXT_SRV=${CMAKE_EXECUTABLE_SUFFIX}")  # .exe
+    list(APPEND _setenvs "CURL_TEST_EXE_EXT_TOOL=${CMAKE_EXECUTABLE_SUFFIX}")  # .exe
+    list(APPEND _setenvs "CURL_TEST_EXE_RUNNER=wine")
+  endif()
+  if(_setenvs)
+    set(_setenvs "${CMAKE_COMMAND}" -E env ${_setenvs})
   endif()
   # Use a special '$TFLAGS' placeholder as last argument which will be
   # replaced by the contents of the environment variable in runtests.pl.
@@ -66,9 +86,10 @@ function(curl_add_runtests _targetname _test_flags)
   string(REPLACE " " ";" _test_flags_list "${_test_flags}")
   add_custom_target(${_targetname}
     COMMAND
+      ${_setenvs}
       "${PERL_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/runtests.pl"
-      ${_test_flags_list}
-      "\$TFLAGS"
+        ${_test_flags_list}
+        "\$TFLAGS"
     DEPENDS "${_depends}"
     VERBATIM USES_TERMINAL
   )
@@ -78,7 +99,11 @@ endfunction()
 function(curl_add_pytests _targetname _test_flags)
   set(_depends "")
   if(NOT _targetname STREQUAL "pytest-ci")
-    set(_depends "clients")
+    if(BUILD_CURL_EXE)
+      list(APPEND _depends "${EXE_NAME}" "curlinfo")
+    endif()
+    list(APPEND _depends "libtests")
+    list(APPEND _depends "build-certs")
   endif()
   string(REPLACE " " ";" _test_flags_list "${_test_flags}")
   add_custom_target(${_targetname}
@@ -94,6 +119,7 @@ if(MSVC OR CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Cl
   if(APPLE AND CMAKE_OSX_SYSROOT)
     string(APPEND CURL_CPP " -isysroot ${CMAKE_OSX_SYSROOT}")
   endif()
+  string(APPEND CURL_CPP " ${CMAKE_C_FLAGS}")
   # Add header directories, like autotools builds do.
   get_property(_include_dirs TARGET ${LIB_SELECTED} PROPERTY INCLUDE_DIRECTORIES)
   foreach(_include_dir IN LISTS _include_dirs)
@@ -109,12 +135,13 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/configurehelp.pm.in"
   "${CMAKE_CURRENT_BINARY_DIR}/configurehelp.pm" @ONLY)
 
+curl_add_runtests(tests          "-a")  # Avoid 'test', which is a reserved target name in CMake
 curl_add_runtests(test-quiet     "-a -s")
 curl_add_runtests(test-am        "-a -am")
 curl_add_runtests(test-full      "-a -p -r")
 # ~flaky means that it ignores results of tests using the flaky keyword
 curl_add_runtests(test-nonflaky  "-a -p ~flaky ~timing-dependent")
-curl_add_runtests(test-ci        "-a -p ~flaky ~timing-dependent -r --retry=5 -j20")
+curl_add_runtests(test-ci        "-a -p ~flaky ~timing-dependent -r --retry=5 -j20 --buildinfo")
 curl_add_runtests(test-torture   "-a -t -j20")
 curl_add_runtests(test-event     "-a -e")
 

@@ -21,8 +21,8 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
+
 #include "easyoptions.h"
 
 #ifndef CURL_DISABLE_GETOPTIONS
@@ -82,7 +82,7 @@ const struct curl_easyoption *curl_easy_option_by_name(const char *name)
   return NULL;
 }
 
-const struct curl_easyoption *curl_easy_option_by_id (CURLoption id)
+const struct curl_easyoption *curl_easy_option_by_id(CURLoption id)
 {
   (void)id;
   return NULL;

@@ -23,7 +23,6 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "tool_getparam.h"
 
 struct tool_var {
@@ -33,14 +32,10 @@ struct tool_var {
   char name[1]; /* allocated as part of the struct */
 };
 
-struct GlobalConfig;
-
-ParameterError setvariable(struct GlobalConfig *global, const char *input);
-ParameterError varexpand(struct GlobalConfig *global,
-                         const char *line, struct dynbuf *out,
-                         bool *replaced);
+ParameterError setvariable(const char *input);
+ParameterError varexpand(const char *line, struct dynbuf *out, bool *replaced);
 
 /* free everything */
-void varcleanup(struct GlobalConfig *global);
+void varcleanup(void);
 
 #endif /* HEADER_CURL_VAR_H */

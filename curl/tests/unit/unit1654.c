@@ -26,7 +26,7 @@
 #include "urldata.h"
 #include "altsvc.h"
 
-static CURLcode test_unit1654(char *arg)
+static CURLcode test_unit1654(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -37,16 +37,14 @@ static CURLcode test_unit1654(char *arg)
   struct altsvcinfo *asi = Curl_altsvc_init();
   abort_if(!asi, "Curl_altsvc_i");
   result = Curl_altsvc_load(asi, arg);
-  if(result) {
-    fail_if(result, "Curl_altsvc_load");
+  fail_if(result, "Curl_altsvc_load");
+  if(result)
     goto fail;
-  }
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
-  if(!curl) {
-    fail_if(!curl, "curl_easy_init");
+  fail_if(!curl, "curl_easy_init");
+  if(!curl)
     goto fail;
-  }
   fail_unless(Curl_llist_count(&asi->list) == 4, "wrong number of entries");
   curl_msnprintf(outname, sizeof(outname), "%s-out", arg);
 
@@ -81,11 +79,10 @@ static CURLcode test_unit1654(char *arg)
   fail_if(result, "Curl_altsvc_parse(5) failed!");
   fail_unless(Curl_llist_count(&asi->list) == 10, "wrong number of entries");
 
-  result =
-    Curl_altsvc_parse(curl, asi,
-                      "h2=\":443\", h3=\":443\"; "
-                      "persist = \"1\"; ma = 120;\r\n",
-                      ALPN_h1, "curl.se", 80);
+  result = Curl_altsvc_parse(curl, asi,
+                             "h2=\":443\"; ma=180, h3=\":443\"; "
+                             "persist = \"1\"; ma = 120;\r\n",
+                             ALPN_h1, "curl.se", 80);
   fail_if(result, "Curl_altsvc_parse(6) failed!");
   fail_unless(Curl_llist_count(&asi->list) == 12, "wrong number of entries");
 
@@ -95,11 +92,10 @@ static CURLcode test_unit1654(char *arg)
   fail_if(result, "Curl_altsvc_parse(7) failed!");
   fail_unless(Curl_llist_count(&asi->list) == 10, "wrong number of entries");
 
-  result =
-    Curl_altsvc_parse(curl, asi,
-                      "h2=\":443\", h3=\":443\"; "
-                      "persist = \"1\"; ma = 120;\r\n",
-                      ALPN_h1, "curl.se", 80);
+  result = Curl_altsvc_parse(curl, asi,
+                             "h2=\":443\", h3=\":443\"; "
+                             "persist = \"1\"; ma = 120;\r\n",
+                             ALPN_h1, "curl.se", 80);
   fail_if(result, "Curl_altsvc_parse(6) failed!");
   fail_unless(Curl_llist_count(&asi->list) == 12, "wrong number of entries");
 
@@ -121,17 +117,23 @@ static CURLcode test_unit1654(char *arg)
                              ALPN_h2, "6.example.net", 80);
   fail_if(result, "Curl_altsvc_parse(9) failed!");
 
-  /* missing port in host name */
+  /* missing port in hostname */
   result = Curl_altsvc_parse(curl, asi,
                              "h2=\"example.net\"; ma=\"180\";\r\n",
                              ALPN_h2, "7.example.net", 80);
   fail_if(result, "Curl_altsvc_parse(10) failed!");
 
-  /* illegal port in host name */
+  /* illegal port in hostname */
   result = Curl_altsvc_parse(curl, asi,
                              "h2=\"example.net:70000\"; ma=\"180\";\r\n",
                              ALPN_h2, "8.example.net", 80);
   fail_if(result, "Curl_altsvc_parse(11) failed!");
+
+  result = Curl_altsvc_parse(curl, asi,
+                             "h2=\"test2.se:443\"; ma=\"180 \" ; unknown=2, "
+                             "h2=\"test3.se:443\"; ma = 120;\r\n",
+                             ALPN_h2, "test.se", 443);
+  fail_if(result, "Curl_altsvc_parse(12) failed!");
 
   Curl_altsvc_save(curl, asi, outname);
 

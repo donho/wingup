@@ -23,17 +23,13 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
-#if defined(USE_THREADS_POSIX) || defined(USE_THREADS_WIN32)
-#if defined(USE_THREADS_POSIX)
+#ifdef USE_THREADS_POSIX
 #include <pthread.h>
 #endif
-#include "curl_threads.h"
-#endif
 
-#define CAINFO libtest_arg2
-#define THREAD_SIZE 16
+#include "curl_threads.h"
+
+#define THREAD_SIZE     16
 #define PER_THREAD_SIZE 8
 
 struct Ctx {
@@ -50,7 +46,7 @@ static size_t write_memory_callback(char *contents, size_t size,
   /* append the data to contents */
   size_t realsize = size * nmemb;
   struct Ctx *mem = (struct Ctx *)userp;
-  char *data = (char *)malloc(realsize + 1);
+  char *data = curlx_malloc(realsize + 1);
   struct curl_slist *item_append = NULL;
   if(!data) {
     curl_mprintf("not enough memory (malloc returned NULL)\n");
@@ -59,7 +55,7 @@ static size_t write_memory_callback(char *contents, size_t size,
   memcpy(data, contents, realsize);
   data[realsize] = '\0';
   item_append = curl_slist_append(mem->contents, data);
-  free(data);
+  curlx_free(data);
   if(item_append) {
     mem->contents = item_append;
   }
@@ -70,21 +66,14 @@ static size_t write_memory_callback(char *contents, size_t size,
   return realsize;
 }
 
-static
 #if defined(USE_THREADS_POSIX) || defined(USE_THREADS_WIN32)
-#if defined(CURL_WINDOWS_UWP) || defined(UNDER_CE)
-DWORD
+static CURL_THREAD_RETURN_T CURL_STDCALL test_thread(void *ptr)
 #else
-unsigned int
+static unsigned int test_thread(void *ptr)
 #endif
-CURL_STDCALL
-#else
-unsigned int
-#endif
-test_thread(void *ptr)
 {
   struct Ctx *ctx = (struct Ctx *)ptr;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   int i;
 
@@ -93,50 +82,50 @@ test_thread(void *ptr)
   for(i = 0; i < PER_THREAD_SIZE; i++) {
     CURL *curl = curl_easy_init();
     if(curl) {
-      curl_easy_setopt(curl, CURLOPT_URL, (char *)CURL_UNCONST(ctx->URL));
+      curl_easy_setopt(curl, CURLOPT_URL, ctx->URL);
 
       /* use the share object */
       curl_easy_setopt(curl, CURLOPT_SHARE, ctx->share);
-      curl_easy_setopt(curl, CURLOPT_CAINFO, CAINFO);
+      curl_easy_setopt(curl, CURLOPT_CAINFO, libtest_arg2);
 
       curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
       curl_easy_setopt(curl, CURLOPT_WRITEDATA, ptr);
       curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
-      /* Perform the request, res will get the return code */
-      res = curl_easy_perform(curl);
+      /* Perform the request, result will get the return code */
+      result = curl_easy_perform(curl);
 
       /* always cleanup */
       curl_easy_cleanup(curl);
       /* Check for errors */
-      if(res != CURLE_OK) {
+      if(result != CURLE_OK) {
         curl_mfprintf(stderr, "curl_easy_perform() failed: %s\n",
-                      curl_easy_strerror(res));
+                      curl_easy_strerror(result));
         goto test_cleanup;
       }
     }
   }
 
 test_cleanup:
-  ctx->result = res;
+  ctx->result = result;
   return 0;
 }
 
 #if defined(USE_THREADS_POSIX) || defined(USE_THREADS_WIN32)
 
-static void t3207_test_lock(CURL *handle, curl_lock_data data,
+static void t3207_test_lock(CURL *curl, curl_lock_data data,
                             curl_lock_access laccess, void *useptr)
 {
-  curl_mutex_t *mutexes = (curl_mutex_t*) useptr;
-  (void)handle;
+  curl_mutex_t *mutexes = (curl_mutex_t *)useptr;
+  (void)curl;
   (void)laccess;
   Curl_mutex_acquire(&mutexes[data]);
 }
 
-static void t3207_test_unlock(CURL *handle, curl_lock_data data, void *useptr)
+static void t3207_test_unlock(CURL *curl, curl_lock_data data, void *useptr)
 {
-  curl_mutex_t *mutexes = (curl_mutex_t*) useptr;
-  (void)handle;
+  curl_mutex_t *mutexes = (curl_mutex_t *)useptr;
+  (void)curl;
   Curl_mutex_release(&mutexes[data]);
 }
 
@@ -174,7 +163,7 @@ static void execute(CURLSH *share, struct Ctx *ctx)
 static void execute(CURLSH *share, struct Ctx *ctx)
 {
   size_t i;
-  (void) share;
+  (void)share;
   for(i = 0; i < THREAD_SIZE; i++) {
     test_thread((void *)&ctx[i]);
   }
@@ -182,11 +171,11 @@ static void execute(CURLSH *share, struct Ctx *ctx)
 
 #endif
 
-static CURLcode test_lib3207(char *URL)
+static CURLcode test_lib3207(const char *URL)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   size_t i;
-  CURLSH* share;
+  CURLSH *share;
   struct Ctx ctx[THREAD_SIZE];
 
   curl_global_init(CURL_GLOBAL_ALL);
@@ -209,7 +198,7 @@ static CURLcode test_lib3207(char *URL)
 
   for(i = 0; i < CURL_ARRAYSIZE(ctx); i++) {
     if(ctx[i].result) {
-      res = ctx[i].result;
+      result = ctx[i].result;
     }
     else {
       struct curl_slist *item = ctx[i].contents;
@@ -225,5 +214,5 @@ test_cleanup:
   if(share)
     curl_share_cleanup(share);
   curl_global_cleanup();
-  return res;
+  return result;
 }

@@ -29,18 +29,17 @@
 
   It is reproducible by the following steps:
 
-  - Use a proxy that offers NTLM and Negotiate ( CURLOPT_PROXY and
-  CURLOPT_PROXYPORT)
-  - Tell libcurl NOT to use Negotiate  CURL_EASY_SETOPT(CURLOPT_PROXYAUTH,
-  CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NTLM)
+  - Use a proxy that offers NTLM and Negotiate
+    (CURLOPT_PROXY and CURLOPT_PROXYPORT)
+  - Tell libcurl NOT to use Negotiate
+    curl_easy_setopt(CURLOPT_PROXYAUTH,
+                     CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NTLM)
   - Start the request
 */
 
-#include "memdebug.h"
-
-static CURLcode test_lib590(char *URL)
+static CURLcode test_lib590(const char *URL)
 {
-  CURLcode res;
+  CURLcode result;
   CURL *curl;
   long usedauth = 0;
 
@@ -59,7 +58,7 @@ static CURLcode test_lib590(char *URL)
   test_setopt(curl, CURLOPT_URL, URL);
   test_setopt(curl, CURLOPT_HEADER, 1L);
   test_setopt(curl, CURLOPT_PROXYAUTH,
-              (long) (CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NTLM));
+              CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NTLM);
   test_setopt(curl, CURLOPT_PROXY, libtest_arg2); /* set in first.c */
 
   /* set the name + password twice to test that the API is fine with it */
@@ -67,11 +66,11 @@ static CURLcode test_lib590(char *URL)
   test_setopt(curl, CURLOPT_PROXYPASSWORD, "password");
   test_setopt(curl, CURLOPT_PROXYUSERPWD, "me:password");
 
-  res = curl_easy_perform(curl);
-  if(res)
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
-  res = curl_easy_getinfo(curl, CURLINFO_PROXYAUTH_USED, &usedauth);
+  result = curl_easy_getinfo(curl, CURLINFO_PROXYAUTH_USED, &usedauth);
   if(CURLAUTH_NTLM != usedauth) {
     curl_mprintf("CURLINFO_PROXYAUTH_USED did not say NTLM\n");
   }
@@ -81,5 +80,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

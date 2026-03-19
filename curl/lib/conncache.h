@@ -24,8 +24,6 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
-#include <curl/curl.h>
 #include "curlx/timeval.h"
 
 struct connectdata;
@@ -49,7 +47,7 @@ void Curl_conn_terminate(struct Curl_easy *data,
                          bool aborted);
 
 struct cpool {
-   /* the pooled connections, bundled per destination */
+  /* the pooled connections, bundled per destination */
   struct Curl_hash dest2bundle;
   size_t num_conn;
   curl_off_t next_connection_id;
@@ -70,7 +68,7 @@ void Curl_cpool_init(struct cpool *cpool,
                      size_t size);
 
 /* Destroy all connections and free all members */
-void Curl_cpool_destroy(struct cpool *connc);
+void Curl_cpool_destroy(struct cpool *cpool);
 
 /* Init the transfer to be used within its connection pool.
  * Assigns `data->id`. */
@@ -139,7 +137,7 @@ void Curl_cpool_prune_dead(struct Curl_easy *data);
 /**
  * Perform upkeep actions on connections in the transfer's pool.
  */
-CURLcode Curl_cpool_upkeep(void *data);
+CURLcode Curl_cpool_upkeep(struct Curl_easy *data);
 
 typedef void Curl_cpool_conn_do_cb(struct connectdata *conn,
                                    struct Curl_easy *data,
@@ -162,5 +160,8 @@ void Curl_cpool_do_by_id(struct Curl_easy *data,
 void Curl_cpool_do_locked(struct Curl_easy *data,
                           struct connectdata *conn,
                           Curl_cpool_conn_do_cb *cb, void *cbdata);
+
+/* Close all unused connections, prevent reuse of existing ones. */
+void Curl_cpool_nw_changed(struct Curl_easy *data);
 
 #endif /* HEADER_CURL_CONNCACHE_H */

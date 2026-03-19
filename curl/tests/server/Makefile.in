@@ -113,11 +113,11 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@DOING_NATIVE_WINDOWS_TRUE@am__append_1 = -DCURL_STATICLIB
 noinst_PROGRAMS = $(am__EXEEXT_1)
 subdir = tests/server
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
+	$(top_srcdir)/m4/curl-apple-sectrust.m4 \
 	$(top_srcdir)/m4/curl-compilers.m4 \
 	$(top_srcdir)/m4/curl-confopts.m4 \
 	$(top_srcdir)/m4/curl-functions.m4 \
@@ -137,8 +137,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
 	$(top_srcdir)/m4/xc-lt-iface.m4 \
 	$(top_srcdir)/m4/xc-val-flgs.m4 \
 	$(top_srcdir)/m4/zz40-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz50-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz60-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
+	$(top_srcdir)/m4/zz50-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -236,6 +235,7 @@ CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@ @CURL_CFLAG_EXTRAS@
 CFLAG_CURL_SYMBOL_HIDING = @CFLAG_CURL_SYMBOL_HIDING@
+CLANG_TIDY = @CLANG_TIDY@
 CONFIGURE_OPTIONS = @CONFIGURE_OPTIONS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -250,6 +250,7 @@ CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX = @CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX@
 CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME = @CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME@
 CURL_NETWORK_AND_TIME_LIBS = @CURL_NETWORK_AND_TIME_LIBS@
 CYGPATH_W = @CYGPATH_W@
+DANTED = @DANTED@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
@@ -319,7 +320,9 @@ RANLIB = @RANLIB@
 RC = @RC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
+SFTPD = @SFTPD@
 SHELL = @SHELL@
+SSHD = @SSHD@
 SSL_BACKENDS = @SSL_BACKENDS@
 STRIP = @STRIP@
 SUPPORT_FEATURES = @SUPPORT_FEATURES@
@@ -418,10 +421,14 @@ AUTOMAKE_OPTIONS = foreign nostdinc
 # $(top_srcdir)/include is for libcurl's external include files
 # $(top_builddir)/lib is for libcurl's generated lib/curl_config.h file
 # $(top_srcdir)/lib for libcurl's lib/curl_setup.h and other "borrowed" files
+# $(top_srcdir)/src for toolx header files
 # $(srcdir) for the generated bundle source to find included test sources
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir)/lib \
-	-I$(top_srcdir)/lib -I$(srcdir) -DWITHOUT_LIBCURL \
-	-DCURL_NO_OLDIES $(am__append_1)
+AM_CPPFLAGS = -I$(top_srcdir)/include        \
+              -I$(top_builddir)/lib          \
+              -I$(top_srcdir)/lib            \
+              -I$(top_srcdir)/src            \
+              -I$(srcdir)
+
 BUNDLE = servers
 
 # Files referenced from the bundle source
@@ -429,21 +436,27 @@ FIRST_C = first.c
 FIRST_H = first.h
 
 # Common files used by test programs
-UTILS_C = memptr.c getpart.c util.c
+UTILS_C = getpart.c util.c
 UTILS_H = 
 CURLX_C = \
   ../../lib/curlx/base64.c \
-  ../../lib/curlx/inet_pton.c \
+  ../../lib/curlx/fopen.c \
   ../../lib/curlx/inet_ntop.c \
+  ../../lib/curlx/inet_pton.c \
   ../../lib/curlx/multibyte.c \
   ../../lib/curlx/nonblock.c \
+  ../../lib/curlx/snprintf.c \
+  ../../lib/curlx/strcopy.c \
+  ../../lib/curlx/strerr.c \
   ../../lib/curlx/strparse.c \
   ../../lib/curlx/timediff.c \
   ../../lib/curlx/timeval.c \
-  ../../lib/curlx/version_win32.c \
   ../../lib/curlx/wait.c \
   ../../lib/curlx/warnless.c \
   ../../lib/curlx/winapi.c
+
+TOOLX_C = \
+  ../../src/toolx/tool_time.c
 
 
 # All test servers
@@ -458,7 +471,7 @@ TESTS_C = \
   tftpd.c
 
 
-# Get BUNDLE, FIRST_C, FIRST_H, UTILS_C, UTILS_H, CURLX_C, TESTS_C variables
+# Get BUNDLE, FIRST_C, FIRST_H, UTILS_C, UTILS_H, CURLX_C, TOOLX_C, TESTS_C variables
 EXTRA_DIST = CMakeLists.txt .checksrc $(FIRST_C) $(FIRST_H) $(UTILS_C) $(UTILS_H) $(TESTS_C)
 LDADD = @CURL_NETWORK_AND_TIME_LIBS@
 CLEANFILES = $(BUNDLE).c
@@ -768,8 +781,8 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-$(BUNDLE).c: $(top_srcdir)/scripts/mk-unity.pl Makefile.inc $(FIRST_C) $(UTILS_C) $(CURLX_C) $(TESTS_C)
-	@PERL@ $(top_srcdir)/scripts/mk-unity.pl --include $(UTILS_C) $(CURLX_C) --test $(TESTS_C) > $(BUNDLE).c
+$(BUNDLE).c: $(top_srcdir)/scripts/mk-unity.pl Makefile.inc $(FIRST_C) $(UTILS_C) $(CURLX_C) $(TOOLX_C) $(TESTS_C)
+	@PERL@ $(top_srcdir)/scripts/mk-unity.pl --include $(UTILS_C) $(CURLX_C) $(TOOLX_C) --test $(TESTS_C) > $(BUNDLE).c
 
 # ignore generated C files since they play by slightly different rules!
 checksrc:

@@ -24,23 +24,14 @@
  * RFC4752 The Kerberos V5 ("GSSAPI") SASL Mechanism
  *
  ***************************************************************************/
-
-#include "../curl_setup.h"
+#include "curl_setup.h"
 
 #if defined(HAVE_GSSAPI) && defined(USE_KERBEROS5)
 
-#include <curl/curl.h>
-
-#include "vauth.h"
-#include "../curl_sasl.h"
-#include "../urldata.h"
-#include "../curl_gssapi.h"
-#include "../sendf.h"
-#include "../curl_printf.h"
-
-/* The last #include files should be: */
-#include "../curl_memory.h"
-#include "../memdebug.h"
+#include "vauth/vauth.h"
+#include "curl_sasl.h"
+#include "curl_gssapi.h"
+#include "curl_trc.h"
 
 #if defined(__GNUC__) && defined(__APPLE__)
 #pragma GCC diagnostic push
@@ -99,8 +90,8 @@ CURLcode Curl_auth_create_gssapi_user_message(struct Curl_easy *data,
   gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
   gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
 
-  (void) userp;
-  (void) passwdp;
+  (void)userp;
+  (void)passwdp;
 
   if(!krb5->spn) {
     gss_buffer_desc spn_token = GSS_C_EMPTY_BUFFER;
@@ -121,12 +112,12 @@ CURLcode Curl_auth_create_gssapi_user_message(struct Curl_easy *data,
       Curl_gss_log_error(data, "gss_import_name() failed: ",
                          major_status, minor_status);
 
-      free(spn);
+      curlx_free(spn);
 
       return CURLE_AUTH_ERROR;
     }
 
-    free(spn);
+    curlx_free(spn);
   }
 
   if(chlg) {
@@ -160,11 +151,11 @@ CURLcode Curl_auth_create_gssapi_user_message(struct Curl_easy *data,
   }
 
   if(output_token.value && output_token.length) {
-    result = Curl_bufref_memdup(out, output_token.value, output_token.length);
+    result = Curl_bufref_memdup0(out, output_token.value, output_token.length);
     gss_release_buffer(&unused_status, &output_token);
   }
   else
-    Curl_bufref_set(out, mutual_auth ? "": NULL, 0, NULL);
+    Curl_bufref_set(out, mutual_auth ? "" : NULL, 0, NULL);
 
   return result;
 }
@@ -226,6 +217,7 @@ CURLcode Curl_auth_create_gssapi_security_message(struct Curl_easy *data,
   /* Not 4 octets long so fail as per RFC4752 Section 3.1 */
   if(output_token.length != 4) {
     infof(data, "GSSAPI handshake failure (invalid security data)");
+    gss_release_buffer(&unused_status, &output_token);
     return CURLE_BAD_CONTENT_ENCODING;
   }
 
@@ -248,8 +240,8 @@ CURLcode Curl_auth_create_gssapi_security_message(struct Curl_easy *data,
 
   /* Process the maximum message size the server can receive */
   if(max_size > 0) {
-    /* The server has told us it supports a maximum receive buffer, however, as
-       we do not require one unless we are encrypting data, we tell the server
+    /* The server has told us it supports a maximum receive buffer, but as we
+       do not require one unless we are encrypting data, we tell the server
        our receive buffer is zero. */
     max_size = 0;
   }
@@ -258,7 +250,7 @@ CURLcode Curl_auth_create_gssapi_security_message(struct Curl_easy *data,
   messagelen = 4;
   if(authzid)
     messagelen += strlen(authzid);
-  message = malloc(messagelen);
+  message = curlx_malloc(messagelen);
   if(!message)
     return CURLE_OUT_OF_MEMORY;
 
@@ -285,17 +277,17 @@ CURLcode Curl_auth_create_gssapi_security_message(struct Curl_easy *data,
   if(GSS_ERROR(major_status)) {
     Curl_gss_log_error(data, "gss_wrap() failed: ",
                        major_status, minor_status);
-    free(message);
+    curlx_free(message);
     return CURLE_AUTH_ERROR;
   }
 
   /* Return the response. */
-  result = Curl_bufref_memdup(out, output_token.value, output_token.length);
+  result = Curl_bufref_memdup0(out, output_token.value, output_token.length);
   /* Free the output buffer */
   gss_release_buffer(&unused_status, &output_token);
 
   /* Free the message buffer */
-  free(message);
+  curlx_free(message);
 
   return result;
 }

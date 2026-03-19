@@ -23,9 +23,10 @@
  ***************************************************************************/
 #include "unitcheck.h"
 
-#include "hostip.h"
-
 #ifndef CURL_DISABLE_SHUFFLE_DNS
+
+#include "urldata.h"
+#include "curl_addrinfo.h"
 
 CURLcode Curl_shuffle_addr(struct Curl_easy *data,
                            struct Curl_addrinfo **addr);
@@ -42,19 +43,19 @@ static CURLcode t1608_setup(void)
   return CURLE_OK;
 }
 
-static CURLcode test_unit1608(char *arg)
+static CURLcode test_unit1608(const char *arg)
 {
   UNITTEST_BEGIN(t1608_setup())
 
   int i;
-  CURLcode code;
+  CURLcode result;
   struct Curl_addrinfo *addrhead = addrs;
 
   struct Curl_easy *easy = curl_easy_init();
   abort_unless(easy, "out of memory");
 
-  code = curl_easy_setopt(easy, CURLOPT_DNS_SHUFFLE_ADDRESSES, 1L);
-  abort_unless(code == CURLE_OK, "curl_easy_setopt failed");
+  result = curl_easy_setopt(easy, CURLOPT_DNS_SHUFFLE_ADDRESSES, 1L);
+  abort_unless(result == CURLE_OK, "curl_easy_setopt failed");
 
   /* Shuffle repeatedly and make sure that the list changes */
   for(i = 0; i < 10; i++) {
@@ -74,7 +75,7 @@ static CURLcode test_unit1608(char *arg)
 
 #else
 
-static CURLcode test_unit1608(char *arg)
+static CURLcode test_unit1608(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
   UNITTEST_END_SIMPLE

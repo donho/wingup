@@ -24,18 +24,18 @@
 #include "first.h"
 
 #include "testutil.h"
-#include "memdebug.h"
 
 /*
  * Test GET_PARAMETER: PUT, HEARTBEAT, and POST
  */
-static CURLcode test_lib572(char *URL)
+static CURLcode test_lib572(const char *URL)
 {
-  CURLcode res;
+  CURLcode result;
   CURL *curl;
+  char errbuf[STRERROR_LEN];
   int params;
   FILE *paramsf = NULL;
-  struct_stat file_info;
+  curlx_struct_stat file_info;
   char *stream_uri = NULL;
   int request = 1;
   struct curl_slist *custom_headers = NULL;
@@ -61,7 +61,7 @@ static CURLcode test_lib572(char *URL)
   /* SETUP */
   stream_uri = tutil_suburl(URL, request++);
   if(!stream_uri) {
-    res = TEST_ERR_MAJOR_BAD;
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
@@ -70,13 +70,13 @@ static CURLcode test_lib572(char *URL)
 
   test_setopt(curl, CURLOPT_RTSP_TRANSPORT, "Planes/Trains/Automobiles");
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_SETUP);
-  res = curl_easy_perform(curl);
-  if(res)
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
   stream_uri = tutil_suburl(URL, request++);
   if(!stream_uri) {
-    res = TEST_ERR_MAJOR_BAD;
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
@@ -84,54 +84,58 @@ static CURLcode test_lib572(char *URL)
   stream_uri = NULL;
 
   /* PUT style GET_PARAMETERS */
-  params = open(libtest_arg2, O_RDONLY);
+  params = curlx_open(libtest_arg2, O_RDONLY);
   if(params == -1) {
-    curl_mfprintf(stderr, "can't open %s\n", libtest_arg2);
-    res = TEST_ERR_MAJOR_BAD;
+    curl_mfprintf(stderr, "open() failed with error (%d) %s\n",
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
+    curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
-  fstat(params, &file_info);
-  close(params);
+  curlx_fstat(params, &file_info);
+  curlx_close(params);
 
-  paramsf = fopen(libtest_arg2, "rb");
+  paramsf = curlx_fopen(libtest_arg2, "rb");
   if(!paramsf) {
-    curl_mfprintf(stderr, "can't fopen %s\n", libtest_arg2);
-    res = TEST_ERR_MAJOR_BAD;
+    curl_mfprintf(stderr, "fopen() failed with error (%d) %s\n",
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
+    curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_GET_PARAMETER);
 
   test_setopt(curl, CURLOPT_READDATA, paramsf);
   test_setopt(curl, CURLOPT_UPLOAD, 1L);
-  test_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t) file_info.st_size);
+  test_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)file_info.st_size);
 
-  res = curl_easy_perform(curl);
-  if(res)
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
   test_setopt(curl, CURLOPT_UPLOAD, 0L);
-  fclose(paramsf);
+  curlx_fclose(paramsf);
   paramsf = NULL;
 
   /* Heartbeat GET_PARAMETERS */
   stream_uri = tutil_suburl(URL, request++);
   if(!stream_uri) {
-    res = TEST_ERR_MAJOR_BAD;
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
   curl_free(stream_uri);
   stream_uri = NULL;
 
-  res = curl_easy_perform(curl);
-  if(res)
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
   /* POST GET_PARAMETERS */
 
   stream_uri = tutil_suburl(URL, request++);
   if(!stream_uri) {
-    res = TEST_ERR_MAJOR_BAD;
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
@@ -141,8 +145,8 @@ static CURLcode test_lib572(char *URL)
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_GET_PARAMETER);
   test_setopt(curl, CURLOPT_POSTFIELDS, "packets_received\njitter\n");
 
-  res = curl_easy_perform(curl);
-  if(res)
+  result = curl_easy_perform(curl);
+  if(result)
     goto test_cleanup;
 
   test_setopt(curl, CURLOPT_POSTFIELDS, NULL);
@@ -150,7 +154,7 @@ static CURLcode test_lib572(char *URL)
   /* Make sure we can do a normal request now */
   stream_uri = tutil_suburl(URL, request++);
   if(!stream_uri) {
-    res = TEST_ERR_MAJOR_BAD;
+    result = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
@@ -158,12 +162,12 @@ static CURLcode test_lib572(char *URL)
   stream_uri = NULL;
 
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_OPTIONS);
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
   if(paramsf)
-    fclose(paramsf);
+    curlx_fclose(paramsf);
 
   curl_free(stream_uri);
 
@@ -173,5 +177,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

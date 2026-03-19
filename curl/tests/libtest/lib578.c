@@ -23,8 +23,6 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
 /* The size of data should be kept below MAX_INITIAL_POST_SIZE! */
 static char t578_testdata[] = "this is a short string.\n";
 
@@ -33,11 +31,11 @@ static size_t data_size = CURL_ARRAYSIZE(t578_testdata);
 static int t578_progress_callback(void *clientp, double dltotal, double dlnow,
                                   double ultotal, double ulnow)
 {
-  FILE *moo = fopen(libtest_arg2, "wb");
+  FILE *moo = curlx_fopen(libtest_arg2, "wb");
 
-  (void)clientp; /* UNUSED */
-  (void)dltotal; /* UNUSED */
-  (void)dlnow; /* UNUSED */
+  (void)clientp;
+  (void)dltotal;
+  (void)dlnow;
 
   if(moo) {
     if((size_t)ultotal == data_size && (size_t)ulnow == data_size)
@@ -45,15 +43,15 @@ static int t578_progress_callback(void *clientp, double dltotal, double dlnow,
     else
       curl_mfprintf(moo, "Progress callback called with UL %f out of %f\n",
                     ulnow, ultotal);
-    fclose(moo);
+    curlx_fclose(moo);
   }
   return 0;
 }
 
-static CURLcode test_lib578(char *URL)
+static CURLcode test_lib578(const char *URL)
 {
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
@@ -87,8 +85,8 @@ static CURLcode test_lib578(char *URL)
   /* include headers in the output */
   test_setopt(curl, CURLOPT_HEADER, 1L);
 
-  /* Perform the request, res will get the return code */
-  res = curl_easy_perform(curl);
+  /* Perform the request, result will get the return code */
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
@@ -96,5 +94,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

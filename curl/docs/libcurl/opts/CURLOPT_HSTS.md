@@ -33,7 +33,7 @@ name with this option also enables HSTS for this handle (the equivalent of
 setting *CURLHSTS_ENABLE* with CURLOPT_HSTS_CTRL(3)).
 
 If the given file does not exist or contains no HSTS entries at startup, the
-HSTS cache simply starts empty. Setting the filename to NULL allows HSTS
+HSTS cache starts empty. Setting the filename to NULL allows HSTS
 without reading from or writing to any file. NULL also makes libcurl clear the
 list of files to read HSTS data from, if any such were previously set.
 
@@ -66,6 +66,10 @@ NULL, no filename
 libcurl cannot fully protect against attacks where an attacker has write
 access to the same directory where it is directed to save files. This is
 particularly sensitive if you save files using elevated privileges.
+
+libcurl creates the file to store HSTS data in using default file permissions,
+meaning that on *nix systems you may need to restrict your umask to prevent
+other users on the same system to access the file.
 
 # %PROTOCOLS%
 

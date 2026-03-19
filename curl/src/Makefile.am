@@ -57,11 +57,7 @@ endif
 if DEBUGBUILD
 AM_CPPFLAGS += -DDEBUGBUILD
 endif
-if CURLDEBUG
-AM_CPPFLAGS += -DCURLDEBUG
-endif
 
-AM_LDFLAGS =
 if USE_UNICODE
 UNICODEFLAG = -municode
 endif
@@ -94,7 +90,7 @@ curl_SOURCES += $(CURL_RCFILES)
 $(CURL_RCFILES): tool_version.h
 endif
 
-curl_LDFLAGS = $(AM_LDFLAGS) $(CURL_LDFLAGS_BIN) $(UNICODEFLAG)
+curl_LDFLAGS = $(CURL_LDFLAGS_BIN) $(UNICODEFLAG)
 
 # This might hold -Werror
 CFLAGS += @CURL_CFLAG_EXTRAS@
@@ -141,6 +137,7 @@ curl_CPPFLAGS += -DUSE_MANUAL
 $(ASCIIPAGE):
 	cd $(top_builddir)/docs && $(MAKE)
 
+if PERL
 if HAVE_LIBZ
 # This generates the tool_hugehelp.c file in both uncompressed and
 # compressed formats.
@@ -151,9 +148,9 @@ $(HUGE): $(ASCIIPAGE) $(MKHELP)
 	echo '/* !checksrc! disable LONGLINE all */' >> $(HUGE);   \
 	echo '#include "tool_setup.h"' >> $(HUGE);                 \
 	echo '#ifndef HAVE_LIBZ' >> $(HUGE);                       \
-	$(PERL) $(MKHELP) < $(ASCIIPAGE) >> $(HUGE);               \
+	@PERL@ $(MKHELP) < $(ASCIIPAGE) >> $(HUGE);                \
 	echo '#else' >> $(HUGE);                                   \
-	$(PERL) $(MKHELP) -c < $(ASCIIPAGE) >> $(HUGE);            \
+	@PERL@ $(MKHELP) -c < $(ASCIIPAGE) >> $(HUGE);             \
 	echo '#endif /* HAVE_LIBZ */' >> $(HUGE) )
 else # HAVE_LIBZ
 # This generates the tool_hugehelp.c file uncompressed only
@@ -161,7 +158,20 @@ $(HUGE): $(ASCIIPAGE) $(MKHELP)
 	$(HUGECMD)(                                                \
 	echo '/* !checksrc! disable COPYRIGHT all */' > $(HUGE);   \
 	echo '#include "tool_setup.h"' >> $(HUGE);                 \
-	$(PERL) $(MKHELP) < $(ASCIIPAGE) >> $(HUGE) )
+	@PERL@ $(MKHELP) < $(ASCIIPAGE) >> $(HUGE) )
+endif
+else # PERL
+$(HUGE):
+	$(HUGECMD)(                                                \
+	if test ! -f "$(srcdir)/$(HUGE)"; then                     \
+	  echo '/* !checksrc! disable COPYRIGHT all */' > $(HUGE); \
+	  echo '#include "tool_hugehelp.h"' >> $(HUGE);            \
+	  echo 'void hugehelp(void) {}' >> $(HUGE);                \
+	  echo 'void showhelp(const char *trigger, const char *arg, const char *endarg)' >> $(HUGE); \
+	  echo '{' >> $(HUGE);                                     \
+	  echo '  (void)trigger; (void)arg; (void)endarg;' >> $(HUGE); \
+	  echo '}' >> $(HUGE);                                     \
+	fi)
 endif
 
 else # USE_MANUAL
@@ -182,7 +192,7 @@ if CURL_CA_EMBED_SET
 curl_CPPFLAGS += -DCURL_CA_EMBED
 MK_FILE_EMBED = $(top_srcdir)/src/mk-file-embed.pl
 $(CA_EMBED_CSOURCE): $(MK_FILE_EMBED) $(CURL_CA_EMBED)
-	$(PERL) $(MK_FILE_EMBED) --var curl_ca_embed < $(CURL_CA_EMBED) > $(CA_EMBED_CSOURCE)
+	@PERL@ $(MK_FILE_EMBED) --var curl_ca_embed < $(CURL_CA_EMBED) > $(CA_EMBED_CSOURCE)
 else
 $(CA_EMBED_CSOURCE):
 	echo '/* !checksrc! disable COPYRIGHT all */' > $(CA_EMBED_CSOURCE)
@@ -205,17 +215,18 @@ all-local: checksrc
 endif
 endif
 
-# disable the tests that are mostly causing false positives
-TIDYFLAGS := -checks=-clang-analyzer-security.insecureAPI.bzero,-clang-analyzer-security.insecureAPI.strcpy,-clang-analyzer-optin.performance.Padding,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling -quiet
+_tidy_cflags :=
+TIDYFLAGS :=
 if CURL_WERROR
-TIDYFLAGS += --warnings-as-errors=*
+TIDYFLAGS += '--warnings-as-errors=*'
 endif
-
-TIDY := clang-tidy
+if CLANG
+_tidy_cflags += $(CFLAGS)
+endif
 
 tidy: $(HUGE) $(CA_EMBED_CSOURCE)
 	(_curl_cfiles=`echo ' $(CURL_CFILES)' | sed -e 's/ +/ /g' -e 's| | $(srcdir)/|g'`; \
-	$(TIDY) $$_curl_cfiles $(curl_cfiles_gen) $(TIDYFLAGS) $(CURL_CLANG_TIDYFLAGS) -- $(curl_CPPFLAGS) $(CPPFLAGS) $(AM_CPPFLAGS) -DHAVE_CONFIG_H)
+	@CLANG_TIDY@ --config-file=$(top_srcdir)/.clang-tidy.yml $(TIDYFLAGS) $(CURL_CLANG_TIDYFLAGS) $$_curl_cfiles $(curl_cfiles_gen) -- $(curl_CPPFLAGS) $(CPPFLAGS) $(AM_CPPFLAGS) -DHAVE_CONFIG_H $(_tidy_cflags))
 
 listhelp:
 	(cd $(top_srcdir)/docs/cmdline-opts && make listhelp)

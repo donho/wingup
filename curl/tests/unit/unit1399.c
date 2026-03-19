@@ -71,13 +71,15 @@ static void expect_timer_seconds(struct Curl_easy *data, int seconds)
  * E.g., if t_starttransfer took 2 seconds initially and took another 1
  * second for the redirect request, then the resulting t_starttransfer should
  * be 3 seconds. */
-static CURLcode test_unit1399(char *arg)
+static CURLcode test_unit1399(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
   struct Curl_easy data;
   struct curltime now = curlx_now();
 
+  data.multi = NULL;
+  data.progress.now = now;
   data.progress.t_nslookup = 0;
   data.progress.t_connect = 0;
   data.progress.t_appconnect = 0;

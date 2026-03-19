@@ -21,21 +21,11 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
+#include "curl_setup.h"
 
-#include "../curl_setup.h"
-
-#include <curl/curl.h>
-
-#include "vauth.h"
-#include "../strdup.h"
-#include "../urldata.h"
-#include "../curlx/multibyte.h"
-#include "../curl_printf.h"
-#include "../url.h"
-
-/* The last #include files should be: */
-#include "../curl_memory.h"
-#include "../memdebug.h"
+#include "vauth/vauth.h"
+#include "curlx/multibyte.h"
+#include "url.h"
 
 /*
  * Curl_auth_build_spn()
@@ -54,7 +44,7 @@
  *
  * Returns a pointer to the newly allocated SPN.
  */
-#if !defined(USE_WINDOWS_SSPI)
+#ifndef USE_WINDOWS_SSPI
 char *Curl_auth_build_spn(const char *service, const char *host,
                           const char *realm)
 {
@@ -62,11 +52,11 @@ char *Curl_auth_build_spn(const char *service, const char *host,
 
   /* Generate our SPN */
   if(host && realm)
-    spn = aprintf("%s/%s@%s", service, host, realm);
+    spn = curl_maprintf("%s/%s@%s", service, host, realm);
   else if(host)
-    spn = aprintf("%s/%s", service, host);
+    spn = curl_maprintf("%s/%s", service, host);
   else if(realm)
-    spn = aprintf("%s@%s", service, realm);
+    spn = curl_maprintf("%s@%s", service, realm);
 
   /* Return our newly allocated SPN */
   return spn;
@@ -77,9 +67,8 @@ TCHAR *Curl_auth_build_spn(const char *service, const char *host,
 {
   char *utf8_spn = NULL;
   TCHAR *tchar_spn = NULL;
-  TCHAR *dupe_tchar_spn = NULL;
 
-  (void) realm;
+  (void)realm;
 
   /* Note: We could use DsMakeSPN() or DsClientMakeSpnForTargetServer() rather
      than doing this ourselves but the first is only available in Windows XP
@@ -89,20 +78,15 @@ TCHAR *Curl_auth_build_spn(const char *service, const char *host,
      formulate the SPN instead. */
 
   /* Generate our UTF8 based SPN */
-  utf8_spn = aprintf("%s/%s", service, host);
+  utf8_spn = curl_maprintf("%s/%s", service, host);
   if(!utf8_spn)
     return NULL;
 
-  /* Allocate and return a TCHAR based SPN. Since curlx_convert_UTF8_to_tchar
-     must be freed by curlx_unicodefree we will dupe the result so that the
-     pointer this function returns can be normally free'd. */
+  /* Allocate and return a TCHAR based SPN. */
   tchar_spn = curlx_convert_UTF8_to_tchar(utf8_spn);
-  free(utf8_spn);
-  if(!tchar_spn)
-    return NULL;
-  dupe_tchar_spn = _tcsdup(tchar_spn);
-  curlx_unicodefree(tchar_spn);
-  return dupe_tchar_spn;
+  curlx_free(utf8_spn);
+
+  return tchar_spn;
 }
 #endif /* USE_WINDOWS_SSPI */
 
@@ -133,7 +117,7 @@ bool Curl_auth_user_contains_domain(const char *user)
 
   if(user && *user) {
     /* Check we have a domain name or UPN present */
-    char *p = strpbrk(user, "\\/@");
+    const char *p = strpbrk(user, "\\/@");
 
     valid = (p != NULL && p > user && p < user + strlen(user) - 1);
   }
@@ -148,7 +132,7 @@ bool Curl_auth_user_contains_domain(const char *user)
 }
 
 /*
- * Curl_auth_ollowed_to_host() tells if authentication, cookies or other
+ * Curl_auth_allowed_to_host() tells if authentication, cookies or other
  * "sensitive data" can (still) be sent to this host.
  */
 bool Curl_auth_allowed_to_host(struct Curl_easy *data)
@@ -159,11 +143,10 @@ bool Curl_auth_allowed_to_host(struct Curl_easy *data)
          (data->state.first_host &&
           curl_strequal(data->state.first_host, conn->host.name) &&
           (data->state.first_remote_port == conn->remote_port) &&
-          (data->state.first_remote_protocol == conn->handler->protocol));
+          (data->state.first_remote_protocol == conn->scheme->protocol));
 }
 
 #ifdef USE_NTLM
-
 static void ntlm_conn_dtor(void *key, size_t klen, void *entry)
 {
   struct ntlmdata *ntlm = entry;
@@ -171,18 +154,16 @@ static void ntlm_conn_dtor(void *key, size_t klen, void *entry)
   (void)klen;
   DEBUGASSERT(ntlm);
   Curl_auth_cleanup_ntlm(ntlm);
-  free(ntlm);
+  curlx_free(ntlm);
 }
 
 struct ntlmdata *Curl_auth_ntlm_get(struct connectdata *conn, bool proxy)
 {
-  const char *key = proxy ? CURL_META_NTLM_PROXY_CONN :
-                    CURL_META_NTLM_CONN;
+  const char *key = proxy ? CURL_META_NTLM_PROXY_CONN : CURL_META_NTLM_CONN;
   struct ntlmdata *ntlm = Curl_conn_meta_get(conn, key);
   if(!ntlm) {
-    ntlm = calloc(1, sizeof(*ntlm));
-    if(!ntlm ||
-       Curl_conn_meta_set(conn, key, ntlm, ntlm_conn_dtor))
+    ntlm = curlx_calloc(1, sizeof(*ntlm));
+    if(!ntlm || Curl_conn_meta_set(conn, key, ntlm, ntlm_conn_dtor))
       return NULL;
   }
   return ntlm;
@@ -190,14 +171,12 @@ struct ntlmdata *Curl_auth_ntlm_get(struct connectdata *conn, bool proxy)
 
 void Curl_auth_ntlm_remove(struct connectdata *conn, bool proxy)
 {
-  Curl_conn_meta_remove(conn, proxy ?
-    CURL_META_NTLM_PROXY_CONN : CURL_META_NTLM_CONN);
+  Curl_conn_meta_remove(conn, proxy ? CURL_META_NTLM_PROXY_CONN
+                                    : CURL_META_NTLM_CONN);
 }
-
 #endif /* USE_NTLM */
 
 #ifdef USE_KERBEROS5
-
 static void krb5_conn_dtor(void *key, size_t klen, void *entry)
 {
   struct kerberos5data *krb5 = entry;
@@ -205,25 +184,23 @@ static void krb5_conn_dtor(void *key, size_t klen, void *entry)
   (void)klen;
   DEBUGASSERT(krb5);
   Curl_auth_cleanup_gssapi(krb5);
-  free(krb5);
+  curlx_free(krb5);
 }
 
 struct kerberos5data *Curl_auth_krb5_get(struct connectdata *conn)
 {
   struct kerberos5data *krb5 = Curl_conn_meta_get(conn, CURL_META_KRB5_CONN);
   if(!krb5) {
-    krb5 = calloc(1, sizeof(*krb5));
+    krb5 = curlx_calloc(1, sizeof(*krb5));
     if(!krb5 ||
        Curl_conn_meta_set(conn, CURL_META_KRB5_CONN, krb5, krb5_conn_dtor))
       return NULL;
   }
   return krb5;
 }
-
 #endif /* USE_KERBEROS5 */
 
 #ifdef USE_GSASL
-
 static void gsasl_conn_dtor(void *key, size_t klen, void *entry)
 {
   struct gsasldata *gsasl = entry;
@@ -231,25 +208,23 @@ static void gsasl_conn_dtor(void *key, size_t klen, void *entry)
   (void)klen;
   DEBUGASSERT(gsasl);
   Curl_auth_gsasl_cleanup(gsasl);
-  free(gsasl);
+  curlx_free(gsasl);
 }
 
 struct gsasldata *Curl_auth_gsasl_get(struct connectdata *conn)
 {
   struct gsasldata *gsasl = Curl_conn_meta_get(conn, CURL_META_GSASL_CONN);
   if(!gsasl) {
-    gsasl = calloc(1, sizeof(*gsasl));
+    gsasl = curlx_calloc(1, sizeof(*gsasl));
     if(!gsasl ||
        Curl_conn_meta_set(conn, CURL_META_GSASL_CONN, gsasl, gsasl_conn_dtor))
       return NULL;
   }
   return gsasl;
 }
-
 #endif /* USE_GSASL */
 
 #ifdef USE_SPNEGO
-
 static void nego_conn_dtor(void *key, size_t klen, void *entry)
 {
   struct negotiatedata *nego = entry;
@@ -257,21 +232,18 @@ static void nego_conn_dtor(void *key, size_t klen, void *entry)
   (void)klen;
   DEBUGASSERT(nego);
   Curl_auth_cleanup_spnego(nego);
-  free(nego);
+  curlx_free(nego);
 }
 
 struct negotiatedata *Curl_auth_nego_get(struct connectdata *conn, bool proxy)
 {
-  const char *key = proxy ? CURL_META_NEGO_PROXY_CONN :
-                    CURL_META_NEGO_CONN;
+  const char *key = proxy ? CURL_META_NEGO_PROXY_CONN : CURL_META_NEGO_CONN;
   struct negotiatedata *nego = Curl_conn_meta_get(conn, key);
   if(!nego) {
-    nego = calloc(1, sizeof(*nego));
-    if(!nego ||
-       Curl_conn_meta_set(conn, key, nego, nego_conn_dtor))
+    nego = curlx_calloc(1, sizeof(*nego));
+    if(!nego || Curl_conn_meta_set(conn, key, nego, nego_conn_dtor))
       return NULL;
   }
   return nego;
 }
-
 #endif /* USE_SPNEGO */

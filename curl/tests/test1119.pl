@@ -47,7 +47,7 @@ if(!$rc) {
     $Cpreprocessor = 'cpp';
 }
 
-# we may get the dir root pointed out
+# we may get the directory root pointed out
 my $root=$ARGV[0] || ".";
 
 # need an include directory when building out-of-tree
@@ -93,7 +93,7 @@ sub scanheader {
 sub scanallheaders {
     my $d = "$root/include/curl";
     opendir(my $dh, $d) ||
-        die "Can't opendir: $!";
+        die "Cannot opendir: $!";
     my @headers = grep { /.h\z/ } readdir($dh);
     closedir $dh;
     foreach my $h (@headers) {
@@ -114,7 +114,7 @@ sub checkmanpage {
         while(s/\W(CURL(AUTH|E|H|MOPT|OPT|SHOPT|UE|M|SSH|SSLBACKEND|HEADER|FORM|FTP|PIPE|MIMEOPT|GSSAPI|ALTSVC|PROTO|PROXY|UPART|USESSL|_READFUNC|_WRITEFUNC|_CSELECT|_FORMADD|_IPRESOLVE|_REDIR|_RTSPREQ|_TIMECOND|_VERSION)_[a-zA-Z0-9_]+)//) {
             my $s = $1;
             # skip two "special" ones
-            if($s !~ /^(CURLE_OBSOLETE|CURLOPT_TEMPLATE)/) {
+            if($s !~ /(^(CURLE_OBSOLETE|CURLOPT_TEMPLATE))|_$/) {
                 push @manrefs, "$1:$m:$line";
             }
         }
@@ -126,14 +126,13 @@ sub checkmanpage {
 sub scanman_md_dir {
     my ($d) = @_;
     opendir(my $dh, $d) ||
-        die "Can't opendir: $!";
+        die "Cannot opendir: $!";
     my @mans = grep { /.md\z/ } readdir($dh);
     closedir $dh;
     for my $m (@mans) {
         checkmanpage("$d/$m");
     }
 }
-
 
 scanallheaders();
 scanman_md_dir("$root/docs/libcurl");
@@ -172,7 +171,7 @@ for my $e (sort @syms) {
     #
     # CURL_TEMP_ - are defined and *undefined* again within the file
     #
-    # *_LAST and *_LASTENTRY are just prefix for the placeholders used for the
+    # *_LAST and *_LASTENTRY are just suffix for the placeholders used for the
     # last entry in many enum series.
     #
 
@@ -197,7 +196,7 @@ for my $e (sort @syms) {
 # now scan through all symbols that were present in the symbols-in-versions
 # but not in the headers
 #
-# If the symbols were marked 'removed' in symbols-in-versions we don't output
+# If the symbols were marked 'removed' in symbols-in-versions we do not output
 # anything about it since that is perfectly fine.
 #
 

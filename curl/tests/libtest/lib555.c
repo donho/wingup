@@ -32,9 +32,8 @@
 
 #include "first.h"
 
-#include "memdebug.h"
-
-static const char uploadthis[] = "this is the blurb we want to upload\n";
+static const char t555_uploadthis[] = "this is the blurb we want to upload\n";
+static size_t const t555_datalen = sizeof(t555_uploadthis) - 1;
 
 static size_t t555_read_cb(char *ptr, size_t size, size_t nmemb, void *clientp)
 {
@@ -47,19 +46,19 @@ static size_t t555_read_cb(char *ptr, size_t size, size_t nmemb, void *clientp)
   }
   (*counter)++; /* bump */
 
-  if(size * nmemb >= strlen(uploadthis)) {
+  if(size * nmemb >= t555_datalen) {
     curl_mfprintf(stderr, "READ!\n");
-    strcpy(ptr, uploadthis);
-    return strlen(uploadthis);
+    memcpy(ptr, t555_uploadthis, t555_datalen);
+    return t555_datalen;
   }
   curl_mfprintf(stderr, "READ NOT FINE!\n");
   return 0;
 }
 
-static curlioerr t555_ioctl_callback(CURL *handle, int cmd, void *clientp)
+static curlioerr t555_ioctl_callback(CURL *curl, int cmd, void *clientp)
 {
   int *counter = (int *)clientp;
-  (void)handle; /* unused */
+  (void)curl;
   if(cmd == CURLIOCMD_RESTARTREAD) {
     curl_mfprintf(stderr, "REWIND!\n");
     *counter = 0; /* clear counter to make the read callback restart */
@@ -67,12 +66,12 @@ static curlioerr t555_ioctl_callback(CURL *handle, int cmd, void *clientp)
   return CURLIOE_OK;
 }
 
-static CURLcode test_lib555(char *URL)
+static CURLcode test_lib555(const char *URL)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   CURL *curl = NULL;
   int counter = 0;
-  CURLM *m = NULL;
+  CURLM *multi = NULL;
   int running = 1;
 
   start_test_timing();
@@ -93,17 +92,17 @@ static CURLcode test_lib555(char *URL)
   easy_setopt(curl, CURLOPT_READDATA, &counter);
   /* We CANNOT do the POST fine without setting the size (or choose
      chunked)! */
-  easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(uploadthis));
+  easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)t555_datalen);
 
   easy_setopt(curl, CURLOPT_POST, 1L);
   easy_setopt(curl, CURLOPT_PROXY, libtest_arg2);
   easy_setopt(curl, CURLOPT_PROXYUSERPWD, libtest_arg3);
   easy_setopt(curl, CURLOPT_PROXYAUTH,
-                   (long) (CURLAUTH_NTLM | CURLAUTH_DIGEST | CURLAUTH_BASIC) );
+              CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NTLM);
 
-  multi_init(m);
+  multi_init(multi);
 
-  multi_add_handle(m, curl);
+  multi_add_handle(multi, curl);
 
   while(running) {
     struct timeval timeout;
@@ -113,7 +112,7 @@ static CURLcode test_lib555(char *URL)
     timeout.tv_sec = 0;
     timeout.tv_usec = 100000L; /* 100 ms */
 
-    multi_perform(m, &running);
+    multi_perform(multi, &running);
 
     abort_on_test_timeout();
 
@@ -124,7 +123,7 @@ static CURLcode test_lib555(char *URL)
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
 
-    multi_fdset(m, &fdread, &fdwrite, &fdexcep, &maxfd);
+    multi_fdset(multi, &fdread, &fdwrite, &fdexcep, &maxfd);
 
     /* At this point, maxfd is guaranteed to be greater or equal than -1. */
 
@@ -137,10 +136,10 @@ test_cleanup:
 
   /* proper cleanup sequence - type PA */
 
-  curl_multi_remove_handle(m, curl);
-  curl_multi_cleanup(m);
+  curl_multi_remove_handle(multi, curl);
+  curl_multi_cleanup(multi);
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

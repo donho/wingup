@@ -22,11 +22,14 @@
 # SPDX-License-Identifier: curl
 #
 ###########################################################################
+use strict;
+use warnings;
+
 # Prepare a directory with known files and clean up afterwards
 use Time::Local;
 
 if($#ARGV < 1) {
-    print "Usage: $0 prepare|postprocess dir [logfile]\n";
+    print "Usage: $0 prepare|postprocess directory [logfile]\n";
     exit 1;
 }
 
@@ -52,16 +55,24 @@ if($ARGV[0] eq "prepare") {
     print FILE "Test file to support curl test suite\n";
     close(FILE);
     # The mtime is specifically chosen to be an even number so that it can be
-    # represented exactly on a FAT filesystem.
+    # represented exactly on a FAT file system.
     utime time, timegm(0,0,12,1,0,100), "plainfile.txt";
     chmod 0666, "plainfile.txt";
+
+    open(FILE, ">emptyfile.txt") || errout "$!";
+    binmode FILE;
+    close(FILE);
+    # The mtime is specifically chosen to be an even number so that it can be
+    # represented exactly on a FAT file system.
+    utime time, timegm(0,0,12,1,0,100), "emptyfile.txt";
+    chmod 0666, "emptyfile.txt";
 
     open(FILE, ">rofile.txt") || errout "$!";
     binmode FILE;
     print FILE "Read-only test file to support curl test suite\n";
     close(FILE);
     # The mtime is specifically chosen to be an even number so that it can be
-    # represented exactly on a FAT filesystem.
+    # represented exactly on a FAT file system.
     utime time, timegm(0,0,12,31,11,100), "rofile.txt";
     chmod 0444, "rofile.txt";
     if($^O eq 'cygwin') {
@@ -72,7 +83,6 @@ if($ARGV[0] eq "prepare") {
 }
 elsif($ARGV[0] eq "postprocess") {
     my $dirname = $ARGV[1];
-    my $logfile = $ARGV[2];
 
     # Clean up the test directory
     if($^O eq 'cygwin') {
@@ -80,11 +90,20 @@ elsif($ARGV[0] eq "postprocess") {
     }
     chmod 0666, "$dirname/rofile.txt";
     unlink "$dirname/rofile.txt";
+    unlink "$dirname/emptyfile.txt";
     unlink "$dirname/plainfile.txt";
     rmdir "$dirname/asubdir";
 
     rmdir $dirname || die "$!";
 
+    if($#ARGV >= 3) {  # Verify mtime if requested
+        my $checkfile = $ARGV[2];
+        my $expected_mtime = int($ARGV[3]);
+        my $mtime = (stat($checkfile))[9];
+        exit ($mtime != $expected_mtime);
+    }
+
+    my $logfile = $ARGV[2];
     if($logfile && -s $logfile) {
         # Process the directory file to remove all information that
         # could be inconsistent from one test run to the next (e.g.
@@ -111,7 +130,7 @@ elsif($ARGV[0] eq "postprocess") {
                     next;
                 }
                 # Erase all directory metadata except for the name, as it is not
-                # consistent for across all test systems and filesystems
+                # consistent for across all test systems and file systems
                 push @canondir, "d?????????    N U         U               N ???  N NN:NN $8\n";
             } elsif($1 eq "-") {
                 # Ignore group and other permissions, because these may vary on
@@ -127,7 +146,7 @@ elsif($ARGV[0] eq "postprocess") {
         }
         close(IN);
 
-        @canondir = sort {substr($a,57) cmp substr($b,57)} @canondir;
+        @canondir = sort {substr($a, 57) cmp substr($b, 57)} @canondir;
         my $newfile = $logfile . ".new";
         open(OUT, ">$newfile") || die "$!";
         print OUT join('', @canondir);

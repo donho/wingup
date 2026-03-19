@@ -67,7 +67,7 @@ int main(void)
   CURL *curl = curl_easy_init();
   if(curl) {
     curl_easy_setopt(curl, CURLOPT_URL, "https://example.com");
-    curl_easy_setopt(curl, CURLOPT_PROXY, "https://proxy:443");
+    curl_easy_setopt(curl, CURLOPT_PROXY, "https://proxy.example:443");
     curl_easy_setopt(curl, CURLOPT_PROXY_PINNEDPUBLICKEY,
                      "sha256//YhKJKSzoTt2b5FP18fvpHo7fJYqQCjA"
                      "a3HWY3tvRMwE=;sha256//t62CeU2tQiqkexU74"
@@ -91,7 +91,7 @@ from the https proxy server's certificate.
 # Windows-specific:
 # - Use NUL instead of /dev/null.
 # - OpenSSL may wait for input instead of disconnecting. Hit enter.
-# - If you do not have sed, then just copy the certificate into a file:
+# - If you do not have sed, then copy the certificate into a file:
 #   Lines from -----BEGIN CERTIFICATE----- to -----END CERTIFICATE-----.
 #
 openssl s_client -servername www.example.com -connect www.example.com:443 \

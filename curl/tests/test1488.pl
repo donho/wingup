@@ -27,6 +27,7 @@
 # a late evening in the #curl IRC channel.
 #
 
+use strict;
 use warnings;
 use vars qw($Cpreprocessor);
 use allversions;
@@ -47,18 +48,20 @@ if(!$rc) {
     $Cpreprocessor = 'cpp';
 }
 
-# we may get the dir root pointed out
+# we may get the directory root pointed out
 my $root=$ARGV[0] || ".";
 
 # need an include directory when building out-of-tree
 my $i = ($ARGV[1]) ? "-I$ARGV[1] " : '';
-my $error;
+my $error = 0;
 
 my $versions = $ARGV[2];
 
 my @syms;
 my %manpage;
 my %symadded;
+
+our %pastversion;
 
 sub checkmanpage {
     my ($m) = @_;
@@ -95,7 +98,7 @@ sub checkmanpage {
 sub scanman_md_dir {
     my ($d) = @_;
     opendir(my $dh, $d) ||
-        die "Can't opendir: $!";
+        die "Cannot opendir: $!";
     my @mans = grep { /.md\z/ } readdir($dh);
     closedir $dh;
     for my $m (@mans) {

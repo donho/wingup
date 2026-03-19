@@ -53,8 +53,7 @@ HTTP Proxy. Default when no scheme or proxy type is specified.
 
 ## https://
 
-HTTPS Proxy. (Added in 7.52.0 for OpenSSL and GnuTLS Since 7.87.0, it also
-works for mbedTLS, Rustls, Schannel and wolfSSL.)
+HTTPS Proxy. (with OpenSSL, GnuTLS, mbedTLS, Rustls, Schannel or wolfSSL.)
 
 This uses HTTP/1 by default. Setting CURLOPT_PROXYTYPE(3) to
 **CURLPROXY_HTTPS2** allows libcurl to negotiate using HTTP/2 with proxy.
@@ -89,8 +88,9 @@ proxy. Such tunneling is activated with CURLOPT_HTTPPROXYTUNNEL(3).
 Setting the proxy string to "" (an empty string) explicitly disables the use
 of a proxy, even if there is an environment variable set for it.
 
-Unix domain sockets are supported for socks proxies since 7.84.0. Set
-localhost for the host part. e.g. socks5h://localhost/path/to/socket.sock
+Unix domain sockets are supported for SOCKS proxies. Set `localhost` for the
+host part and append the absolute path to the domain socket. For example:
+`socks5h://localhost/path/to/socket.sock`
 
 When you set a hostname to use, do not assume that there is any particular
 single port number used widely for proxies. Specify it.
@@ -137,7 +137,7 @@ int main(void)
   CURL *curl = curl_easy_init();
   if(curl) {
     curl_easy_setopt(curl, CURLOPT_URL, "https://example.com/file.txt");
-    curl_easy_setopt(curl, CURLOPT_PROXY, "http://proxy:80");
+    curl_easy_setopt(curl, CURLOPT_PROXY, "http://proxy.example:80");
     curl_easy_perform(curl);
   }
 }
@@ -152,6 +152,11 @@ Since 7.21.7 the proxy string supports the socks protocols as "schemes".
 
 Since 7.50.2, unsupported schemes in proxy strings cause libcurl to return
 error.
+
+Since 7.52.0, it supports HTTPS proxy for OpenSSL.
+
+Since 7.87.0, it supports HTTPS proxy for GnuTLS, for mbedTLS, Rustls,
+Schannel and wolfSSL.
 
 # %AVAILABILITY%
 

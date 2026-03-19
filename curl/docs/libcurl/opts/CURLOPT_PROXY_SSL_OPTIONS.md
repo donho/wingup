@@ -40,17 +40,17 @@ Tells libcurl to not attempt to use any workarounds for a security flaw in the
 SSL3 and TLS1.0 protocols. If this option is not used or this bit is set to 0,
 the SSL layer libcurl uses may use a work-around for this flaw although it
 might cause interoperability problems with some (older) SSL implementations.
-WARNING: avoiding this work-around lessens the security, and by setting this
-option to 1 you ask for exactly that. This option is only supported for Secure
-Transport and OpenSSL.
+
+**WARNING:** avoiding this work-around lessens the security, and by setting
+this option to 1 you ask for exactly that. This option is only supported for
+Secure Transport and OpenSSL.
 
 ## CURLSSLOPT_NO_REVOKE
 
 Tells libcurl to disable certificate revocation checks for those SSL backends
 where such behavior is present. This option is only supported for Schannel
 (the native Windows SSL library), with an exception in the case of Windows'
-Untrusted Publishers block list which it seems cannot be bypassed. (Added in
-7.44.0)
+Untrusted Publishers block list which it seems cannot be bypassed.
 
 ## CURLSSLOPT_NO_PARTIALCHAIN
 
@@ -105,17 +105,22 @@ int main(void)
 {
   CURL *curl = curl_easy_init();
   if(curl) {
-    CURLcode res;
+    CURLcode result;
     curl_easy_setopt(curl, CURLOPT_URL, "https://example.com/");
-    curl_easy_setopt(curl, CURLOPT_PROXY, "https://proxy");
+    curl_easy_setopt(curl, CURLOPT_PROXY, "https://proxy.example");
     /* weaken TLS only for use with silly proxies */
-    curl_easy_setopt(curl, CURLOPT_PROXY_SSL_OPTIONS, (long)
+    curl_easy_setopt(curl, CURLOPT_PROXY_SSL_OPTIONS,
                      CURLSSLOPT_ALLOW_BEAST | CURLSSLOPT_NO_REVOKE);
-    res = curl_easy_perform(curl);
+    result = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
   }
 }
 ~~~
+
+# HISTORY
+
+**CURLSSLOPT_*** macros became `long` types in 8.15.0, prior to this version
+a `long` cast was necessary when passed to curl_easy_setopt(3).
 
 # %AVAILABILITY%
 

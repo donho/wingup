@@ -25,7 +25,7 @@
  ***************************************************************************/
 #include "first.h"
 
-/* build request url */
+/* build request URL */
 char *tutil_suburl(const char *base, int i);
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -36,4 +36,4 @@ char *tutil_suburl(const char *base, int i);
 void tutil_rlim2str(char *buf, size_t len, rlim_t val);
 #endif
 
-#endif  /* HEADER_CURL_LIBTEST_TESTUTIL_H */
+#endif /* HEADER_CURL_LIBTEST_TESTUTIL_H */

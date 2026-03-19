@@ -9,9 +9,11 @@ Category: important output
 Added: 4.0
 Multi: per-URL
 See-also:
+  - out-null
   - remote-name
   - remote-name-all
   - remote-header-name
+  - compressed
 Example:
   - -o file $URL
   - "http://{one,two}.example.com" -o "file_#1.txt"
@@ -38,7 +40,7 @@ this:
 
     curl -o aa example.com -o bb example.net
 
-and the order of the -o options and the URLs does not matter, just that the
+and the order of the -o options and the URLs does not matter, only that the
 first -o is for the first URL and so on, so the above command line can also be
 written as
 
@@ -56,7 +58,14 @@ Or for Windows:
 
     curl example.com -o nul
 
+Or, even more efficient and portable, use
+
+    curl example.com --out-null
+
 Specify the filename as single minus to force the output to stdout, to
 override curl's internal binary output in terminal prevention:
 
     curl https://example.com/jpeg -o -
+
+Note that the binary output may be caused by the response being compressed, in
+which case you may want to use the --compressed option.

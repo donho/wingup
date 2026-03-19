@@ -23,9 +23,9 @@
  ***************************************************************************/
 #include "unitcheck.h"
 
-#include "curl_fnmatch.h"
-
 #ifndef CURL_DISABLE_FTP
+
+#include "curl_fnmatch.h"
 
 /*
    CURL_FNMATCH_MATCH    0
@@ -36,17 +36,17 @@
 #define MATCH   CURL_FNMATCH_MATCH
 #define NOMATCH CURL_FNMATCH_NOMATCH
 
-#define LINUX_DIFFER 0x80
-#define LINUX_SHIFT 8
-#define LINUX_MATCH ((CURL_FNMATCH_MATCH << LINUX_SHIFT) | LINUX_DIFFER)
+#define LINUX_DIFFER  0x80
+#define LINUX_SHIFT   8
+#define LINUX_MATCH   ((CURL_FNMATCH_MATCH   << LINUX_SHIFT) | LINUX_DIFFER)
 #define LINUX_NOMATCH ((CURL_FNMATCH_NOMATCH << LINUX_SHIFT) | LINUX_DIFFER)
-#define LINUX_FAIL ((CURL_FNMATCH_FAIL << LINUX_SHIFT) | LINUX_DIFFER)
+#define LINUX_FAIL    ((CURL_FNMATCH_FAIL    << LINUX_SHIFT) | LINUX_DIFFER)
 
-#define MAC_DIFFER 0x40
-#define MAC_SHIFT 16
-#define MAC_MATCH ((CURL_FNMATCH_MATCH << MAC_SHIFT) | MAC_DIFFER)
-#define MAC_NOMATCH ((CURL_FNMATCH_NOMATCH << MAC_SHIFT) | MAC_DIFFER)
-#define MAC_FAIL ((CURL_FNMATCH_FAIL << MAC_SHIFT) | MAC_DIFFER)
+#define MAC_DIFFER    0x40
+#define MAC_SHIFT     16
+#define MAC_MATCH     ((CURL_FNMATCH_MATCH   << MAC_SHIFT) | MAC_DIFFER)
+#define MAC_NOMATCH   ((CURL_FNMATCH_NOMATCH << MAC_SHIFT) | MAC_DIFFER)
+#define MAC_FAIL      ((CURL_FNMATCH_FAIL    << MAC_SHIFT) | MAC_DIFFER)
 
 static const char *ret2name(int i)
 {
@@ -63,7 +63,7 @@ static const char *ret2name(int i)
   /* not reached */
 }
 
-static CURLcode test_unit1307(char *arg)
+static CURLcode test_unit1307(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -146,8 +146,8 @@ static CURLcode test_unit1307(char *arg)
     { "[! ][ ]",                  "  ",                     NOMATCH },
     { "[! ][ ]",                  "a ",                     MATCH },
     { "*[^a].t?t",                "a.txt",                  NOMATCH },
-    { "*[^a].t?t",                "ba.txt",                 NOMATCH },
-    { "*[^a].t?t",                "ab.txt",                 MATCH },
+    { "*[^a].t?t",                "ca.txt",                 NOMATCH },
+    { "*[^a].t?t",                "ac.txt",                 MATCH },
     { "*[^a]",                    "",                       NOMATCH },
     { "[!\xFF]",                  "",             NOMATCH|LINUX_FAIL},
     { "[!\xFF]",                  "\xFF",  NOMATCH|LINUX_FAIL|MAC_FAIL},
@@ -186,13 +186,13 @@ static CURLcode test_unit1307(char *arg)
     { "[[:foo:]]",                "bar",                    NOMATCH|MAC_FAIL},
     { "[[:foo:]]",                "f]",         MATCH|LINUX_NOMATCH|MAC_FAIL},
 
-    { "Curl[[:blank:]];-)",       "Curl ;-)",               MATCH },
+    { "curl[[:blank:]];-)",       "curl ;-)",               MATCH },
     { "*[[:blank:]]*",            " ",                      MATCH },
     { "*[[:blank:]]*",            "",                       NOMATCH },
     { "*[[:blank:]]*",            "hi, im_Pavel",           MATCH },
 
     /* common using */
-    { "filename.dat",             "filename.dat",           MATCH },
+    { "Filename.dat",             "Filename.dat",           MATCH },
     { "*curl*",                   "lets use curl!!",        MATCH },
     { "filename.txt",             "filename.dat",           NOMATCH },
     { "*.txt",                    "text.txt",               MATCH },
@@ -264,7 +264,7 @@ static CURLcode test_unit1307(char *arg)
                                   "a",                      NOMATCH|LINUX_FAIL}
   };
 
-  int i;
+  size_t i;
 
   enum system {
     SYSTEM_CUSTOM,
@@ -280,17 +280,17 @@ static CURLcode test_unit1307(char *arg)
 #else
   machine = SYSTEM_LINUX;
 #endif
-  printf("Tested with system fnmatch(), %s-style\n",
-         machine == SYSTEM_LINUX ? "linux" : "mac");
+  curl_mprintf("Tested with system fnmatch(), %s-style\n",
+               machine == SYSTEM_LINUX ? "linux" : "mac");
 #else
-  printf("Tested with custom fnmatch()\n");
+  curl_mprintf("Tested with custom fnmatch()\n");
   machine = SYSTEM_CUSTOM;
 #endif
 
-  for(i = 0; i < (int)CURL_ARRAYSIZE(tests); i++) {
+  for(i = 0; i < CURL_ARRAYSIZE(tests); i++) {
     int result = tests[i].result;
     int rc = Curl_fnmatch(NULL, tests[i].pattern, tests[i].string);
-    if(result & (LINUX_DIFFER|MAC_DIFFER)) {
+    if(result & (LINUX_DIFFER | MAC_DIFFER)) {
       if((result & LINUX_DIFFER) && (machine == SYSTEM_LINUX))
         result >>= LINUX_SHIFT;
       else if((result & MAC_DIFFER) && (machine == SYSTEM_MACOS))
@@ -298,10 +298,10 @@ static CURLcode test_unit1307(char *arg)
       result &= 0x03; /* filter off all high bits */
     }
     if(rc != result) {
-      printf("Curl_fnmatch(\"%s\", \"%s\") should return %s (returns %s)"
-             " [%d]\n",
-             tests[i].pattern, tests[i].string, ret2name(result),
-             ret2name(rc), i);
+      curl_mprintf("Curl_fnmatch(\"%s\", \"%s\") should return %s (returns %s)"
+                   " [%zu]\n",
+                   tests[i].pattern, tests[i].string, ret2name(result),
+                   ret2name(rc), i);
       fail("pattern mismatch");
     }
   }
@@ -311,7 +311,7 @@ static CURLcode test_unit1307(char *arg)
 
 #else
 
-static CURLcode test_unit1307(char *arg)
+static CURLcode test_unit1307(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
   UNITTEST_END_SIMPLE

@@ -23,9 +23,6 @@
  ***************************************************************************/
 #include "first.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 /* Function
  *
  * Accepts a TCP connection on a custom port (IPv4 or IPv6).  Speaks MQTT.
@@ -46,16 +43,17 @@
 #define MQTT_MSG_DISCONNECT 0xe0
 
 struct mqttd_configurable {
+  int testnum;
   unsigned char version; /* initial version byte in the request must match
                             this */
   bool publish_before_suback;
   bool short_publish;
   bool excessive_remaining;
   unsigned char error_connack;
-  int testnum;
+  unsigned char remlen_connack;
 };
 
-#define REQUEST_DUMP  "server.input"
+#define REQUEST_DUMP   "server.input"
 #define CONFIG_VERSION 5
 
 static struct mqttd_configurable m_config;
@@ -68,12 +66,13 @@ static void mqttd_resetdefaults(void)
   m_config.short_publish = FALSE;
   m_config.excessive_remaining = FALSE;
   m_config.error_connack = 0;
+  m_config.remlen_connack = 0;
   m_config.testnum = 0;
 }
 
 static void mqttd_getconfig(void)
 {
-  FILE *fp = fopen(configfile, FOPEN_READTEXT);
+  FILE *fp = curlx_fopen(configfile, FOPEN_READTEXT);
   mqttd_resetdefaults();
   if(fp) {
     char buffer[512];
@@ -81,10 +80,15 @@ static void mqttd_getconfig(void)
     while(fgets(buffer, sizeof(buffer), fp)) {
       char key[32];
       char value[32];
-      if(2 == sscanf(buffer, "%31s %31s", key, value)) {
+      const char *pval;
+      curl_off_t num;
+      if(sscanf(buffer, "%31s %31s", key, value) == 2) {
         if(!strcmp(key, "version")) {
-          m_config.version = byteval(value);
-          logmsg("version [%d] set", m_config.version);
+          pval = value;
+          if(!curlx_str_number(&pval, &num, 0xff)) {
+            m_config.version = (unsigned char)num;
+            logmsg("version [%d] set", m_config.version);
+          }
         }
         else if(!strcmp(key, "PUBLISH-before-SUBACK")) {
           logmsg("PUBLISH-before-SUBACK set");
@@ -95,12 +99,25 @@ static void mqttd_getconfig(void)
           m_config.short_publish = TRUE;
         }
         else if(!strcmp(key, "error-CONNACK")) {
-          m_config.error_connack = byteval(value);
-          logmsg("error-CONNACK = %d", m_config.error_connack);
+          pval = value;
+          if(!curlx_str_number(&pval, &num, 0xff)) {
+            m_config.error_connack = (unsigned char)num;
+            logmsg("error-CONNACK = %d", m_config.error_connack);
+          }
+        }
+        else if(!strcmp(key, "remlen-CONNACK")) {
+          pval = value;
+          if(!curlx_str_number(&pval, &num, 0xff)) {
+            m_config.remlen_connack = (unsigned char)num;
+            logmsg("remlen-CONNACK = %d", m_config.remlen_connack);
+          }
         }
         else if(!strcmp(key, "Testnum")) {
-          m_config.testnum = atoi(value);
-          logmsg("testnum = %d", m_config.testnum);
+          pval = value;
+          if(!curlx_str_number(&pval, &num, INT_MAX)) {
+            m_config.testnum = (int)num;
+            logmsg("testnum = %d", m_config.testnum);
+          }
         }
         else if(!strcmp(key, "excessive-remaining")) {
           logmsg("excessive-remaining set");
@@ -108,7 +125,7 @@ static void mqttd_getconfig(void)
         }
       }
     }
-    fclose(fp);
+    curlx_fclose(fp);
   }
   else {
     logmsg("No config file '%s' to read", configfile);
@@ -123,11 +140,11 @@ typedef enum {
 static void logprotocol(mqttdir dir,
                         const char *prefix, size_t remlen,
                         FILE *output,
-                        unsigned char *buffer, ssize_t len)
+                        const unsigned char *buffer, ssize_t len)
 {
   char data[12000] = "";
   ssize_t i;
-  unsigned char *ptr = buffer;
+  const unsigned char *ptr = buffer;
   char *optr = data;
   int left = sizeof(data);
 
@@ -141,23 +158,25 @@ static void logprotocol(mqttdir dir,
           prefix, (int)remlen, data);
 }
 
-
 /* return 0 on success */
 static int connack(FILE *dump, curl_socket_t fd)
 {
-  unsigned char packet[]={
+  unsigned char packet[] = {
     MQTT_MSG_CONNACK, 0x02,
     0x00, 0x00
   };
   ssize_t rc;
 
+  if(m_config.remlen_connack)
+    packet[1] = m_config.remlen_connack;
   packet[3] = m_config.error_connack;
 
-  rc = swrite(fd, (char *)packet, sizeof(packet));
+  rc = swrite(fd, packet, sizeof(packet));
   if(rc > 0) {
     logmsg("WROTE %zd bytes [CONNACK]", rc);
     loghex(packet, rc);
-    logprotocol(FROM_SERVER, "CONNACK", 2, dump, packet, sizeof(packet));
+    logprotocol(FROM_SERVER, "CONNACK", packet[1], dump,
+                packet, sizeof(packet));
   }
   if(rc == sizeof(packet)) {
     return 0;
@@ -168,7 +187,7 @@ static int connack(FILE *dump, curl_socket_t fd)
 /* return 0 on success */
 static int suback(FILE *dump, curl_socket_t fd, unsigned short packetid)
 {
-  unsigned char packet[]={
+  unsigned char packet[] = {
     MQTT_MSG_SUBACK, 0x03,
     0, 0, /* filled in below */
     0x00
@@ -177,7 +196,7 @@ static int suback(FILE *dump, curl_socket_t fd, unsigned short packetid)
   packet[2] = (unsigned char)(packetid >> 8);
   packet[3] = (unsigned char)(packetid & 0xff);
 
-  rc = swrite(fd, (char *)packet, sizeof(packet));
+  rc = swrite(fd, packet, sizeof(packet));
   if(rc == sizeof(packet)) {
     logmsg("WROTE %zd bytes [SUBACK]", rc);
     loghex(packet, rc);
@@ -191,7 +210,7 @@ static int suback(FILE *dump, curl_socket_t fd, unsigned short packetid)
 /* return 0 on success */
 static int puback(FILE *dump, curl_socket_t fd, unsigned short packetid)
 {
-  unsigned char packet[]={
+  unsigned char packet[] = {
     MQTT_MSG_PUBACK, 0x00,
     0, 0 /* filled in below */
   };
@@ -199,7 +218,7 @@ static int puback(FILE *dump, curl_socket_t fd, unsigned short packetid)
   packet[2] = (unsigned char)(packetid >> 8);
   packet[3] = (unsigned char)(packetid & 0xff);
 
-  rc = swrite(fd, (char *)packet, sizeof(packet));
+  rc = swrite(fd, packet, sizeof(packet));
   if(rc == sizeof(packet)) {
     logmsg("WROTE %zd bytes [PUBACK]", rc);
     loghex(packet, rc);
@@ -214,10 +233,10 @@ static int puback(FILE *dump, curl_socket_t fd, unsigned short packetid)
 /* return 0 on success */
 static int disconnect(FILE *dump, curl_socket_t fd)
 {
-  unsigned char packet[]={
+  unsigned char packet[] = {
     MQTT_MSG_DISCONNECT, 0x00,
   };
-  ssize_t rc = swrite(fd, (char *)packet, sizeof(packet));
+  ssize_t rc = swrite(fd, packet, sizeof(packet));
   if(rc == sizeof(packet)) {
     logmsg("WROTE %zd bytes [DISCONNECT]", rc);
     loghex(packet, rc);
@@ -228,11 +247,8 @@ static int disconnect(FILE *dump, curl_socket_t fd)
   return 1;
 }
 
-
-
 /*
   do
-
      encodedByte = X MOD 128
 
      X = X DIV 128
@@ -275,8 +291,7 @@ static size_t encode_length(size_t packetlen,
   return bytes;
 }
 
-
-static size_t decode_length(unsigned char *buffer,
+static size_t decode_length(const unsigned char *buffer,
                             size_t buflen, size_t *lenbytes)
 {
   size_t len = 0;
@@ -295,7 +310,6 @@ static size_t decode_length(unsigned char *buffer,
 
   return len;
 }
-
 
 /* return 0 on success */
 static int publish(FILE *dump,
@@ -337,6 +351,7 @@ static int publish(FILE *dump,
 
   packet[1 + encodedlen] = (unsigned char)(topiclen >> 8);
   packet[2 + encodedlen] = (unsigned char)(topiclen & 0xff);
+  /* NOLINTNEXTLINE(bugprone-not-null-terminated-result) */
   memcpy(&packet[3 + encodedlen], topic, topiclen);
 
   payloadindex = 3 + topiclen + encodedlen;
@@ -346,7 +361,7 @@ static int publish(FILE *dump,
   if(m_config.short_publish)
     sendamount -= 2;
 
-  rc = swrite(fd, (char *)packet, sendamount);
+  rc = swrite(fd, packet, sendamount);
   if(rc > 0) {
     logmsg("WROTE %zd bytes [PUBLISH]", rc);
     loghex(packet, rc);
@@ -358,7 +373,7 @@ static int publish(FILE *dump,
   return 1;
 }
 
-#define MAX_TOPIC_LENGTH 65535
+#define MAX_TOPIC_LENGTH     65535
 #define MAX_CLIENT_ID_LENGTH 32
 
 static char topic[MAX_TOPIC_LENGTH + 1];
@@ -372,7 +387,7 @@ static int fixedheader(curl_socket_t fd,
   unsigned char buffer[10];
 
   /* get the first two bytes */
-  ssize_t rc = sread(fd, (char *)buffer, 2);
+  ssize_t rc = sread(fd, buffer, 2);
   size_t i;
   if(rc < 2) {
     logmsg("READ %zd bytes [SHORT!]", rc);
@@ -386,7 +401,7 @@ static int fixedheader(curl_socket_t fd,
   i = 1;
   while(buffer[i] & 0x80) {
     i++;
-    rc = sread(fd, (char *)&buffer[i], 1);
+    rc = sread(fd, &buffer[i], 1);
     if(rc != 1) {
       logmsg("Remaining Length broken");
       return 1;
@@ -400,7 +415,7 @@ static int fixedheader(curl_socket_t fd,
 
 static curl_socket_t mqttit(curl_socket_t fd)
 {
-  size_t buff_size = 10*1024;
+  size_t buff_size = 10 * 1024;
   unsigned char *buffer = NULL;
   ssize_t rc;
   unsigned char byte;
@@ -422,7 +437,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
     0x04              /* protocol level */
   };
   snprintf(dumpfile, sizeof(dumpfile), "%s/%s", logdir, REQUEST_DUMP);
-  dump = fopen(dumpfile, "ab");
+  dump = curlx_fopen(dumpfile, "ab");
   if(!dump)
     goto end;
 
@@ -466,7 +481,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
 
     if(remaining_length) {
       /* reading variable header and payload into buffer */
-      rc = sread(fd, (char *)buffer, remaining_length);
+      rc = sread(fd, buffer, remaining_length);
       if(rc > 0) {
         logmsg("READ %zd bytes", rc);
         loghex(buffer, rc);
@@ -474,8 +489,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
     }
 
     if(byte == MQTT_MSG_CONNECT) {
-      logprotocol(FROM_CLIENT, "CONNECT", remaining_length,
-                  dump, buffer, rc);
+      logprotocol(FROM_CLIENT, "CONNECT", remaining_length, dump, buffer, rc);
 
       if(memcmp(protocol, buffer, sizeof(protocol))) {
         logmsg("Protocol preamble mismatch");
@@ -490,7 +504,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
       conn_flags = buffer[7];
 
       start_usr = client_id_offset + payload_len;
-      if(usr_flag == (unsigned char)(conn_flags & usr_flag)) {
+      if(usr_flag == (conn_flags & usr_flag)) {
         logmsg("User flag is present in CONN flag");
         payload_len += (size_t)(buffer[start_usr] << 8) |
                        buffer[start_usr + 1];
@@ -498,7 +512,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
       }
 
       start_passwd = client_id_offset + payload_len;
-      if(passwd_flag == (char)(conn_flags & passwd_flag)) {
+      if(passwd_flag == (conn_flags & passwd_flag)) {
         logmsg("Password flag is present in CONN flags");
         payload_len += (size_t)(buffer[start_passwd] << 8) |
                        buffer[start_passwd + 1];
@@ -555,14 +569,16 @@ static curl_socket_t mqttit(curl_socket_t fd)
       memcpy(topic, &buffer[4], topic_len);
       topic[topic_len] = 0;
 
-      /* there's a QoS byte (two bits) after the topic */
+      /* there is a QoS byte (two bits) after the topic */
 
       logmsg("SUBSCRIBE to '%s' [%d]", topic, packet_id);
       stream = test2fopen(testno, logdir);
       if(!stream) {
+        char errbuf[STRERROR_LEN];
         error = errno;
-        logmsg("fopen() failed with error (%d) %s", error, strerror(error));
-        logmsg("Couldn't open test file %ld", testno);
+        logmsg("fopen() failed with error (%d) %s",
+               error, curlx_strerror(error, errbuf, sizeof(errbuf)));
+        logmsg("Could not open test file %ld", testno);
         goto end;
       }
       error = getpart(&data, &datalen, "reply", "data", stream);
@@ -597,8 +613,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
       size_t topiclen;
 
       logmsg("Incoming PUBLISH");
-      logprotocol(FROM_CLIENT, "PUBLISH", remaining_length,
-                  dump, buffer, rc);
+      logprotocol(FROM_CLIENT, "PUBLISH", remaining_length, dump, buffer, rc);
 
       topiclen = (size_t)(buffer[1 + bytes] << 8) | buffer[2 + bytes];
       logmsg("Got %zu bytes topic", topiclen);
@@ -609,7 +624,7 @@ static curl_socket_t mqttit(curl_socket_t fd)
 #endif
       /* expect a disconnect here */
       /* get the request */
-      rc = sread(fd, (char *)&buffer[0], 2);
+      rc = sread(fd, &buffer[0], 2);
 
       logmsg("READ %zd bytes [DISCONNECT]", rc);
       loghex(buffer, rc);
@@ -626,9 +641,9 @@ end:
   if(buffer)
     free(buffer);
   if(dump)
-    fclose(dump);
+    curlx_fclose(dump);
   if(stream)
-    fclose(stream);
+    curlx_fclose(stream);
   return CURL_SOCKET_BAD;
 }
 
@@ -661,6 +676,7 @@ static bool mqttd_incoming(curl_socket_t listenfd)
   do {
     ssize_t rc;
     int error = 0;
+    char errbuf[STRERROR_LEN];
     curl_socket_t sockfd = listenfd;
     int maxfd = (int)sockfd;
 
@@ -668,15 +684,8 @@ static bool mqttd_incoming(curl_socket_t listenfd)
     FD_ZERO(&fds_write);
     FD_ZERO(&fds_err);
 
-    /* there's always a socket to wait for */
-#if defined(__DJGPP__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warith-conversion"
-#endif
+    /* there is always a socket to wait for */
     FD_SET(sockfd, &fds_read);
-#if defined(__DJGPP__)
-#pragma GCC diagnostic pop
-#endif
 
     do {
       /* select() blocking behavior call on blocking descriptors please */
@@ -689,15 +698,16 @@ static bool mqttd_incoming(curl_socket_t listenfd)
 
     if(rc < 0) {
       logmsg("select() failed with error (%d) %s",
-             error, strerror(error));
+             error, curlx_strerror(error, errbuf, sizeof(errbuf)));
       return FALSE;
     }
 
     if(FD_ISSET(sockfd, &fds_read)) {
       curl_socket_t newfd = accept(sockfd, NULL, NULL);
-      if(CURL_SOCKET_BAD == newfd) {
+      if(newfd == CURL_SOCKET_BAD) {
         error = SOCKERRNO;
-        logmsg("accept() failed with error (%d) %s", error, sstrerror(error));
+        logmsg("accept() failed with error (%d) %s",
+               error, curlx_strerror(error, errbuf, sizeof(errbuf)));
       }
       else {
         logmsg("====> Client connect, fd %ld. "
@@ -715,7 +725,7 @@ static bool mqttd_incoming(curl_socket_t listenfd)
   return TRUE;
 }
 
-static int test_mqttd(int argc, char *argv[])
+static int test_mqttd(int argc, const char *argv[])
 {
   curl_socket_t sock = CURL_SOCKET_BAD;
   curl_socket_t msgsock = CURL_SOCKET_BAD;
@@ -723,6 +733,7 @@ static int test_mqttd(int argc, char *argv[])
   int wroteportfile = 0;
   bool juggle_again;
   int error;
+  char errbuf[STRERROR_LEN];
   int arg = 1;
 
   pidname = ".mqttd.pid";
@@ -732,6 +743,8 @@ static int test_mqttd(int argc, char *argv[])
   server_port = 1883; /* MQTT default port */
 
   while(argc > arg) {
+    const char *opt;
+    curl_off_t num;
     if(!strcmp("--version", argv[arg])) {
       printf("mqttd IPv4%s\n",
 #ifdef USE_IPV6
@@ -739,7 +752,7 @@ static int test_mqttd(int argc, char *argv[])
 #else
              ""
 #endif
-             );
+      );
       return 0;
     }
     else if(!strcmp("--pidfile", argv[arg])) {
@@ -785,15 +798,12 @@ static int test_mqttd(int argc, char *argv[])
     else if(!strcmp("--port", argv[arg])) {
       arg++;
       if(argc > arg) {
-        char *endptr;
-        unsigned long ulnum = strtoul(argv[arg], &endptr, 10);
-        if((endptr != argv[arg] + strlen(argv[arg])) ||
-           ((ulnum != 0UL) && ((ulnum < 1025UL) || (ulnum > 65535UL)))) {
-          fprintf(stderr, "mqttd: invalid --port argument (%s)\n",
-                  argv[arg]);
+        opt = argv[arg];
+        if(curlx_str_number(&opt, &num, 0xffff)) {
+          fprintf(stderr, "mqttd: invalid --port argument (%s)\n", argv[arg]);
           return 0;
         }
-        server_port = util_ultous(ulnum);
+        server_port = (unsigned short)num;
         arg++;
       }
     }
@@ -815,29 +825,25 @@ static int test_mqttd(int argc, char *argv[])
   snprintf(loglockfile, sizeof(loglockfile), "%s/%s/mqtt-%s.lock",
            logdir, SERVERLOGS_LOCKDIR, ipv_inuse);
 
-#ifdef _WIN32
-  if(win32_init())
-    return 2;
-#endif
-
-  CURLX_SET_BINMODE(stdin);
-  CURLX_SET_BINMODE(stdout);
-  CURLX_SET_BINMODE(stderr);
+  CURL_BINMODE(stdin);
+  CURL_BINMODE(stdout);
+  CURL_BINMODE(stderr);
 
   install_signal_handlers(FALSE);
 
   sock = socket(socket_domain, SOCK_STREAM, 0);
 
-  if(CURL_SOCKET_BAD == sock) {
+  if(sock == CURL_SOCKET_BAD) {
     error = SOCKERRNO;
-    logmsg("Error creating socket (%d) %s", error, sstrerror(error));
+    logmsg("Error creating socket (%d) %s",
+           error, curlx_strerror(error, errbuf, sizeof(errbuf)));
     goto mqttd_cleanup;
   }
 
   {
     /* passive daemon style */
     sock = sockdaemon(sock, &server_port, NULL, FALSE);
-    if(CURL_SOCKET_BAD == sock) {
+    if(sock == CURL_SOCKET_BAD) {
       goto mqttd_cleanup;
     }
     msgsock = CURL_SOCKET_BAD; /* no stream socket yet */

@@ -31,53 +31,22 @@
  * be.
  */
 
-#include "binmode.h"
-/* "binmode.h" provides macro CURLX_SET_BINMODE() */
-
-#include "nonblock.h"
-/* "nonblock.h" provides curlx_nonblock() */
-
-#include "warnless.h"
-/* "warnless.h" provides functions:
-
-  curlx_ultous()
-  curlx_ultouc()
-  curlx_uztosi()
-*/
-
-#include "multibyte.h"
-/* "multibyte.h" provides these functions and macros:
-
-  curlx_convert_UTF8_to_wchar()
-  curlx_convert_wchar_to_UTF8()
-  curlx_convert_UTF8_to_tchar()
-  curlx_convert_tchar_to_UTF8()
-  curlx_unicodefree()
-*/
-
-#include "version_win32.h"
-/* provides curlx_verify_windows_version() */
-
-#include "strparse.h"
-/* The curlx_str_* parsing functions */
-
-#include "dynbuf.h"
-/* The curlx_dyn_* functions */
-
-#include "base64.h"
-#include "timeval.h"
-#include "timediff.h"
-
-#include "wait.h"
-/* for curlx_wait_ms */
-
-#include "winapi.h"
-/* for curlx_winapi_strerror */
-
-#include "inet_pton.h"
-/* for curlx_inet_pton */
-
-#include "inet_ntop.h"
-/* for curlx_inet_ntop */
+#include "curlx/base64.h" /* for curlx_base64* */
+#include "curlx/basename.h" /* for curlx_basename() */
+#include "curlx/dynbuf.h" /* for curlx_dyn_*() */
+#include "curlx/fopen.h" /* for curlx_f*() */
+#include "curlx/inet_ntop.h" /* for curlx_inet_ntop() */
+#include "curlx/inet_pton.h" /* for curlx_inet_pton() */
+#include "curlx/multibyte.h" /* for curlx_convert_*() */
+#include "curlx/nonblock.h" /* for curlx_nonblock() */
+#include "curlx/strcopy.h" /* for curlx_strcopy() */
+#include "curlx/strdup.h" /* for curlx_memdup*() and curlx_tcsdup() */
+#include "curlx/strerr.h" /* for curlx_strerror() */
+#include "curlx/strparse.h" /* for curlx_str_* parsing functions */
+#include "curlx/timediff.h" /* for timediff_t type and related functions */
+#include "curlx/timeval.h" /* for curlx_now type and related functions */
+#include "curlx/version_win32.h" /* for curlx_verify_windows_version() */
+#include "curlx/wait.h" /* for curlx_wait_ms() */
+#include "curlx/winapi.h" /* for curlx_winapi_strerror() */
 
 #endif /* HEADER_CURL_CURLX_H */

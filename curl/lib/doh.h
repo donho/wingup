@@ -23,26 +23,20 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "urldata.h"
-#include "curl_addrinfo.h"
-#ifdef USE_HTTPSRR
-# include <stdint.h>
-# include "httpsrr.h"
-#endif
 
 #ifndef CURL_DISABLE_DOH
 
 typedef enum {
   DOH_OK,
-  DOH_DNS_BAD_LABEL,    /* 1 */
-  DOH_DNS_OUT_OF_RANGE, /* 2 */
-  DOH_DNS_LABEL_LOOP,   /* 3 */
-  DOH_TOO_SMALL_BUFFER, /* 4 */
-  DOH_OUT_OF_MEM,       /* 5 */
-  DOH_DNS_RDATA_LEN,    /* 6 */
-  DOH_DNS_MALFORMAT,    /* 7 */
-  DOH_DNS_BAD_RCODE,    /* 8 - no such name */
+  DOH_DNS_BAD_LABEL,        /* 1 */
+  DOH_DNS_OUT_OF_RANGE,     /* 2 */
+  DOH_DNS_LABEL_LOOP,       /* 3 */
+  DOH_TOO_SMALL_BUFFER,     /* 4 */
+  DOH_OUT_OF_MEM,           /* 5 */
+  DOH_DNS_RDATA_LEN,        /* 6 */
+  DOH_DNS_MALFORMAT,        /* 7 */
+  DOH_DNS_BAD_RCODE,        /* 8 - no such name */
   DOH_DNS_UNEXPECTED_TYPE,  /* 9 */
   DOH_DNS_UNEXPECTED_CLASS, /* 10 */
   DOH_NO_CONTENT,           /* 11 */
@@ -51,12 +45,12 @@ typedef enum {
 } DOHcode;
 
 typedef enum {
-  DNS_TYPE_A = 1,
-  DNS_TYPE_NS = 2,
-  DNS_TYPE_CNAME = 5,
-  DNS_TYPE_AAAA = 28,
-  DNS_TYPE_DNAME = 39,           /* RFC6672 */
-  DNS_TYPE_HTTPS = 65
+  CURL_DNS_TYPE_A = 1,
+  CURL_DNS_TYPE_NS = 2,
+  CURL_DNS_TYPE_CNAME = 5,
+  CURL_DNS_TYPE_AAAA = 28,
+  CURL_DNS_TYPE_DNAME = 39,           /* RFC6672 */
+  CURL_DNS_TYPE_HTTPS = 65
 } DNStype;
 
 enum doh_slot_num {
@@ -96,7 +90,7 @@ struct doh_request {
 };
 
 struct doh_response {
-  unsigned int probe_mid;
+  uint32_t probe_mid;
   struct dynbuf body;
   DNStype dnstype;
   CURLcode result;
@@ -112,20 +106,17 @@ struct doh_probes {
 };
 
 /*
- * Curl_doh() resolve a name using DoH (DNS-over-HTTPS). It resolves a name
- * and returns a 'Curl_addrinfo *' with the address information.
+ * Curl_doh() starts a name resolve using DoH (DNS-over-HTTPS). It resolves a
+ * name and returns a 'Curl_addrinfo *' with the address information.
  */
 
-struct Curl_addrinfo *Curl_doh(struct Curl_easy *data,
-                               const char *hostname,
-                               int port,
-                               int ip_version,
-                               int *waitp);
+CURLcode Curl_doh(struct Curl_easy *data, const char *hostname,
+                  int port, int ip_version);
 
 CURLcode Curl_doh_is_resolved(struct Curl_easy *data,
-                              struct Curl_dns_entry **dns);
+                              struct Curl_dns_entry **dnsp);
 
-#define DOH_MAX_ADDR 24
+#define DOH_MAX_ADDR  24
 #define DOH_MAX_CNAME 4
 #define DOH_MAX_HTTPS 4
 
@@ -182,9 +173,9 @@ UNITTEST void de_init(struct dohentry *d);
 UNITTEST void de_cleanup(struct dohentry *d);
 #endif
 
-#else /* if DoH is disabled */
-#define Curl_doh(a,b,c,d,e) NULL
-#define Curl_doh_is_resolved(x,y) CURLE_COULDNT_RESOLVE_HOST
-#endif
+#else /* CURL_DISABLE_DOH */
+#define Curl_doh(a, b, c, d, e)    NULL
+#define Curl_doh_is_resolved(x, y) CURLE_COULDNT_RESOLVE_HOST
+#endif /* !CURL_DISABLE_DOH */
 
 #endif /* HEADER_CURL_DOH_H */

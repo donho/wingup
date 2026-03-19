@@ -23,9 +23,7 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 /* This file is for lib internal stuff */
-
 #include "curl_setup.h"
 
 #include "bufq.h"
@@ -34,7 +32,7 @@
 struct UserDefined;
 
 enum expect100 {
-  EXP100_SEND_DATA,           /* enough waiting, just send the body now */
+  EXP100_SEND_DATA,           /* enough waiting, send the body now */
   EXP100_AWAITING_CONTINUE,   /* waiting for the 100 Continue header */
   EXP100_SENDING_REQUEST,     /* still sending the request but will wait for
                                  the 100 header once done with the request */
@@ -42,13 +40,11 @@ enum expect100 {
 };
 
 enum upgrade101 {
-  UPGR101_INIT,               /* default state */
-  UPGR101_WS,                 /* upgrade to WebSockets requested */
+  UPGR101_NONE,               /* default state */
+  UPGR101_WS,                 /* upgrade to WebSocket requested */
   UPGR101_H2,                 /* upgrade to HTTP/2 requested */
-  UPGR101_RECEIVED,           /* 101 response received */
-  UPGR101_WORKING             /* talking upgraded protocol */
+  UPGR101_RECEIVED            /* 101 response received */
 };
-
 
 /*
  * Request specific data in the easy handle (Curl_easy). Previously,
@@ -123,7 +119,6 @@ struct SingleRequest {
   BIT(ignore_cl);     /* ignore content-length */
   BIT(upload_chunky); /* set TRUE if we are doing chunked transfer-encoding
                          on upload */
-  BIT(getheader);    /* TRUE if header parsing is wanted */
   BIT(no_body);      /* the response has no body */
   BIT(authneg);      /* TRUE when the auth phase has started, which means
                         that we are creating a request with an auth header,
@@ -132,6 +127,7 @@ struct SingleRequest {
   BIT(sendbuf_init); /* sendbuf is initialized */
   BIT(shutdown);     /* request end will shutdown connection */
   BIT(shutdown_err_ignore); /* errors in shutdown will not fail request */
+  BIT(reader_started); /* client reads have started */
 };
 
 /**
@@ -178,11 +174,11 @@ void Curl_req_hard_reset(struct SingleRequest *req, struct Curl_easy *data);
  * they will be buffered. Use `Curl_req_flush()` to make sure
  * bytes are really send.
  * @param data      the transfer making the request
- * @param buf       the complete header bytes, no body
+ * @param req       the complete header bytes, no body
  * @param httpversion version used in request (09, 10, 11, etc.)
  * @return CURLE_OK (on blocking with *pnwritten == 0) or error.
  */
-CURLcode Curl_req_send(struct Curl_easy *data, struct dynbuf *buf,
+CURLcode Curl_req_send(struct Curl_easy *data, struct dynbuf *req,
                        unsigned char httpversion);
 
 /**
@@ -197,10 +193,12 @@ bool Curl_req_done_sending(struct Curl_easy *data);
  */
 CURLcode Curl_req_send_more(struct Curl_easy *data);
 
-/**
- * TRUE iff the request wants to send, e.g. has buffered bytes.
- */
+/* TRUE if the request wants to send, e.g. is not done sending
+ * and is not blocked. */
 bool Curl_req_want_send(struct Curl_easy *data);
+
+/* TRUE if the request wants to receive and is not blocked. */
+bool Curl_req_want_recv(struct Curl_easy *data);
 
 /**
  * TRUE iff the request has no buffered bytes yet to send.

@@ -9,6 +9,8 @@ See-also:
   - CURLOPT_POSTFIELDSIZE_LARGE (3)
 Protocol:
   - HTTP
+  - MQTT
+  - RTSP
 Added-in: 7.2
 ---
 
@@ -54,7 +56,7 @@ int main(void)
     curl_easy_setopt(curl, CURLOPT_URL, "https://example.com");
 
     /* size of the POST data */
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long) strlen(data));
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(data));
 
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 

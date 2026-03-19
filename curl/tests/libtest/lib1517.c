@@ -23,8 +23,6 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
 struct t1517_WriteThis {
   const char *readptr;
   size_t sizeleft;
@@ -51,26 +49,15 @@ static size_t t1517_read_cb(char *ptr, size_t size, size_t nmemb, void *userp)
   return tocopy;
 }
 
-static CURLcode test_lib1517(char *URL)
+static CURLcode test_lib1517(const char *URL)
 {
   static const char testdata[] =
     "this is what we post to the silly web server\n";
 
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   struct t1517_WriteThis pooh;
-
-  if(!strcmp(URL, "check")) {
-#if (defined(_WIN32) || defined(__CYGWIN__))
-    curl_mprintf("Windows TCP does not deliver response data but reports "
-                 "CONNABORTED\n");
-    return TEST_ERR_FAILURE; /* skip since it fails on Windows without
-                                workaround */
-#else
-    return CURLE_OK; /* sure, run this! */
-#endif
-  }
 
   pooh.readptr = testdata;
   pooh.sizeleft = strlen(testdata);
@@ -108,12 +95,13 @@ static CURLcode test_lib1517(char *URL)
   /* include headers in the output */
   test_setopt(curl, CURLOPT_HEADER, 1L);
 
+#if 0
   /* detect HTTP error codes >= 400 */
-  /* test_setopt(curl, CURLOPT_FAILONERROR, 1L); */
+  test_setopt(curl, CURLOPT_FAILONERROR, 1L);
+#endif
 
-
-  /* Perform the request, res will get the return code */
-  res = curl_easy_perform(curl);
+  /* Perform the request, result will get the return code */
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
@@ -121,5 +109,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

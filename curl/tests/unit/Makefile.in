@@ -114,11 +114,11 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @DEBUGBUILD_TRUE@am__append_1 = -DDEBUGBUILD
-@CURLDEBUG_TRUE@am__append_2 = -DCURLDEBUG
 @BUILD_UNITTESTS_TRUE@noinst_PROGRAMS = $(am__EXEEXT_1)
 subdir = tests/unit
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
+	$(top_srcdir)/m4/curl-apple-sectrust.m4 \
 	$(top_srcdir)/m4/curl-compilers.m4 \
 	$(top_srcdir)/m4/curl-confopts.m4 \
 	$(top_srcdir)/m4/curl-functions.m4 \
@@ -138,8 +138,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/curl-amissl.m4 \
 	$(top_srcdir)/m4/xc-lt-iface.m4 \
 	$(top_srcdir)/m4/xc-val-flgs.m4 \
 	$(top_srcdir)/m4/zz40-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz50-xc-ovr.m4 \
-	$(top_srcdir)/m4/zz60-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
+	$(top_srcdir)/m4/zz50-xc-ovr.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -238,6 +237,7 @@ CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@ @CURL_CFLAG_EXTRAS@
 CFLAG_CURL_SYMBOL_HIDING = @CFLAG_CURL_SYMBOL_HIDING@
+CLANG_TIDY = @CLANG_TIDY@
 CONFIGURE_OPTIONS = @CONFIGURE_OPTIONS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -252,6 +252,7 @@ CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX = @CURL_LIBCURL_VERSIONED_SYMBOLS_PREFIX@
 CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME = @CURL_LIBCURL_VERSIONED_SYMBOLS_SONAME@
 CURL_NETWORK_AND_TIME_LIBS = @CURL_NETWORK_AND_TIME_LIBS@
 CYGPATH_W = @CYGPATH_W@
+DANTED = @DANTED@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
@@ -321,7 +322,9 @@ RANLIB = @RANLIB@
 RC = @RC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
+SFTPD = @SFTPD@
 SHELL = @SHELL@
+SSHD = @SSHD@
 SSL_BACKENDS = @SSL_BACKENDS@
 STRIP = @STRIP@
 SUPPORT_FEATURES = @SUPPORT_FEATURES@
@@ -421,10 +424,11 @@ AUTOMAKE_OPTIONS = foreign nostdinc
 # $(top_builddir)/lib is for libcurl's generated lib/curl_config.h file
 # $(top_srcdir)/lib for libcurl's lib/curl_setup.h and other "borrowed" files
 # $(srcdir) for the generated bundle source to find included test sources
+# unit tests are small pretend-libcurl-programs, pass BUILDING_LIBCURL to reflect that
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir)/lib \
 	-I$(top_srcdir)/lib -I$(top_srcdir)/tests/libtest -I$(srcdir) \
-	-DCURL_STATICLIB -DUNITTESTS $(am__append_1) $(am__append_2) \
-	-DCURL_NO_OLDIES -DCURL_DISABLE_DEPRECATION -DBUILDING_LIBCURL
+	-DCURL_STATICLIB -DUNITTESTS $(am__append_1) \
+	-DBUILDING_LIBCURL
 BUNDLE = units
 
 # Files referenced from the bundle source
@@ -439,12 +443,13 @@ TESTS_C = \
   unit1600.c unit1601.c unit1602.c unit1603.c            unit1605.c unit1606.c \
   unit1607.c unit1608.c unit1609.c unit1610.c unit1611.c unit1612.c unit1614.c \
   unit1615.c unit1616.c                                  unit1620.c \
+  unit1636.c \
   unit1650.c unit1651.c unit1652.c unit1653.c unit1654.c unit1655.c unit1656.c \
   unit1657.c unit1658.c            unit1660.c unit1661.c unit1663.c unit1664.c \
   unit1979.c unit1980.c \
-  unit2600.c unit2601.c unit2602.c unit2603.c unit2604.c \
+  unit2600.c unit2601.c unit2602.c unit2603.c unit2604.c unit2605.c \
   unit3200.c                                             unit3205.c \
-  unit3211.c unit3212.c unit3213.c unit3214.c
+  unit3211.c unit3212.c unit3213.c unit3214.c            unit3216.c
 
 
 # Get BUNDLE, FIRST_C, TESTS_C variables
@@ -757,8 +762,11 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-@BUILD_UNITTESTS_TRUE@$(BUNDLE).c: $(top_srcdir)/scripts/mk-unity.pl Makefile.inc $(FIRST_C) $(TESTS_C)
+@BUILD_UNITTESTS_TRUE@$(BUNDLE).c: $(top_srcdir)/scripts/mk-unity.pl Makefile.inc $(FIRST_C) $(TESTS_C) $(top_builddir)/lib/unitprotos.h
 @BUILD_UNITTESTS_TRUE@	@PERL@ $(top_srcdir)/scripts/mk-unity.pl --test $(TESTS_C) > $(BUNDLE).c
+
+@BUILD_UNITTESTS_TRUE@$(top_builddir)/lib/unitprotos.h:
+@BUILD_UNITTESTS_TRUE@	(cd $(top_builddir)/lib && $(MAKE) unitprotos.h)
 
 # ignore generated C files since they play by slightly different rules!
 checksrc:

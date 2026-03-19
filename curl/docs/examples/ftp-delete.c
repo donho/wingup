@@ -21,30 +21,30 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-#include <stdio.h>
-
-#include <curl/curl.h>
-
 /* <DESC>
  * Delete a single file from an FTP server.
  * </DESC>
  */
+#include <stdio.h>
 
-static size_t my_fwrite(void *buffer, size_t size, size_t nmemb, void *stream)
+#include <curl/curl.h>
+
+static size_t write_cb(void *buffer, size_t size, size_t nmemb, void *stream)
 {
   (void)buffer;
   (void)stream;
   return size * nmemb;
 }
 
-
 int main(void)
 {
   CURL *curl;
-  CURLcode res;
+  CURLcode result;
   struct curl_slist *headerlist = NULL;
 
-  curl_global_init(CURL_GLOBAL_DEFAULT);
+  result = curl_global_init(CURL_GLOBAL_ALL);
+  if(result != CURLE_OK)
+    return (int)result;
 
   curl = curl_easy_init();
   if(curl) {
@@ -53,7 +53,7 @@ int main(void)
      */
     curl_easy_setopt(curl, CURLOPT_URL, "ftp://ftp.example.com/");
     /* Define our callback to get called when there is data to be written */
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, my_fwrite);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 
     /* Switch on full protocol/debug output */
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
@@ -64,7 +64,7 @@ int main(void)
     /* pass in list of FTP commands to run after the transfer */
     curl_easy_setopt(curl, CURLOPT_POSTQUOTE, headerlist);
 
-    res = curl_easy_perform(curl);
+    result = curl_easy_perform(curl);
 
     /* always cleanup */
     curl_easy_cleanup(curl);
@@ -72,13 +72,13 @@ int main(void)
     /* clean up the FTP commands list */
     curl_slist_free_all(headerlist);
 
-    if(CURLE_OK != res) {
+    if(result != CURLE_OK) {
       /* we failed */
-      fprintf(stderr, "curl told us %d\n", res);
+      fprintf(stderr, "curl told us %d\n", result);
     }
   }
 
   curl_global_cleanup();
 
-  return 0;
+  return (int)result;
 }

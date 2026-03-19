@@ -32,8 +32,6 @@
 #include <arpa/inet.h>
 #endif
 
-#include "memdebug.h"
-
 /* to prevent libcurl from closing our socket */
 static int closesocket_cb(void *clientp, curl_socket_t item)
 {
@@ -64,31 +62,31 @@ static int sockopt_cb(void *clientp,
   return CURL_SOCKOPT_ALREADY_CONNECTED;
 }
 
-#if defined(__AMIGA__)
-#define my_inet_pton(x,y,z) inet_pton(x,(unsigned char *)y,z)
+#ifdef __AMIGA__
+#define my_inet_pton(x, y, z) inet_pton(x, (unsigned char *)y, z)
 #else
-#define my_inet_pton(x,y,z) inet_pton(x,y,z)
+#define my_inet_pton(x, y, z) inet_pton(x, y, z)
 #endif
 
-
 /* Expected args: URL IP PORT */
-static CURLcode test_lib1960(char *URL)
+static CURLcode test_lib1960(const char *URL)
 {
   CURL *curl = NULL;
-  CURLcode res = TEST_ERR_MAJOR_BAD;
+  CURLcode result = TEST_ERR_MAJOR_BAD;
   int status;
   curl_socket_t client_fd = CURL_SOCKET_BAD;
   struct sockaddr_in serv_addr;
-  unsigned short port;
+  curl_off_t port;
 
   if(!strcmp("check", URL))
     return CURLE_OK; /* no output makes it not skipped */
 
-  port = (unsigned short)atoi(libtest_arg3);
+  if(curlx_str_number(&libtest_arg3, &port, 0xffff))
+    return result;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
-    return TEST_ERR_MAJOR_BAD;
+    return result;
   }
 
   /*
@@ -96,21 +94,22 @@ static CURLcode test_lib1960(char *URL)
    * over this socket as "already connected" to libcurl and make sure that
    * this works.
    */
-  client_fd = socket(AF_INET, SOCK_STREAM, 0);
+  client_fd = CURL_SOCKET(AF_INET, SOCK_STREAM, 0);
   if(client_fd == CURL_SOCKET_BAD) {
     curl_mfprintf(stderr, "socket creation error\n");
     goto test_cleanup;
   }
 
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
+  serv_addr.sin_port = htons((unsigned short)port);
 
   if(my_inet_pton(AF_INET, libtest_arg2, &serv_addr.sin_addr) <= 0) {
     curl_mfprintf(stderr, "inet_pton failed\n");
     goto test_cleanup;
   }
 
-  status = connect(client_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+  status = connect(client_fd, (struct sockaddr *)&serv_addr,
+                   sizeof(serv_addr));
   if(status < 0) {
     curl_mfprintf(stderr, "connection failed\n");
     goto test_cleanup;
@@ -133,7 +132,7 @@ static CURLcode test_lib1960(char *URL)
   test_setopt(curl, CURLOPT_HEADER, 1L);
   test_setopt(curl, CURLOPT_URL, URL);
 
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
   curl_easy_cleanup(curl);
@@ -141,10 +140,10 @@ test_cleanup:
     sclose(client_fd);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }
 #else
-static CURLcode test_lib1960(char *URL)
+static CURLcode test_lib1960(const char *URL)
 {
   (void)URL;
   curl_mprintf("lacks inet_pton\n");

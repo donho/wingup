@@ -23,14 +23,12 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
-static CURLcode test_lib501(char *URL)
+static CURLcode test_lib501(const char *URL)
 {
-  CURLcode res;
+  CURLcode result;
   CURL *curl;
 
-  (void)URL; /* we don't use this */
+  (void)URL;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
@@ -49,12 +47,12 @@ static CURLcode test_lib501(char *URL)
   /* just verify that setting this to -1 is fine */
   test_setopt(curl, CURLOPT_MAXREDIRS, -1L);
 
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

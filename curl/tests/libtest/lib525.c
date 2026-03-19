@@ -23,16 +23,15 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
-static CURLcode test_lib525(char *URL)
+static CURLcode test_lib525(const char *URL)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   CURL *curl = NULL;
+  char errbuf[STRERROR_LEN];
   FILE *hd_src = NULL;
   int hd;
-  struct_stat file_info;
-  CURLM *m = NULL;
+  curlx_struct_stat file_info;
+  CURLM *multi = NULL;
   int running;
 
   start_test_timing();
@@ -42,33 +41,29 @@ static CURLcode test_lib525(char *URL)
     return TEST_ERR_USAGE;
   }
 
-  hd_src = fopen(libtest_arg2, "rb");
+  hd_src = curlx_fopen(libtest_arg2, "rb");
   if(!hd_src) {
-    curl_mfprintf(stderr, "fopen failed with error (%d) %s\n",
-                  errno, strerror(errno));
+    curl_mfprintf(stderr, "fopen() failed with error (%d) %s\n",
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
     curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
     return TEST_ERR_FOPEN;
   }
 
   /* get the file size of the local file */
-#ifdef UNDER_CE
-  hd = stat(libtest_arg2, &file_info);
-#else
-  hd = fstat(fileno(hd_src), &file_info);
-#endif
+  hd = curlx_fstat(fileno(hd_src), &file_info);
   if(hd == -1) {
-    /* can't open file, bail out */
+    /* cannot open file, bail out */
     curl_mfprintf(stderr, "fstat() failed with error (%d) %s\n",
-                  errno, strerror(errno));
+                  errno, curlx_strerror(errno, errbuf, sizeof(errbuf)));
     curl_mfprintf(stderr, "Error opening file '%s'\n", libtest_arg2);
-    fclose(hd_src);
+    curlx_fclose(hd_src);
     return TEST_ERR_FSTAT;
   }
 
   res_global_init(CURL_GLOBAL_ALL);
-  if(res) {
-    fclose(hd_src);
-    return res;
+  if(result) {
+    curlx_fclose(hd_src);
+    return result;
   }
 
   easy_init(curl);
@@ -99,9 +94,9 @@ static CURLcode test_lib525(char *URL)
      make sure that to pass in a type 'long' argument. */
   easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)file_info.st_size);
 
-  multi_init(m);
+  multi_init(multi);
 
-  multi_add_handle(m, curl);
+  multi_add_handle(multi, curl);
 
   for(;;) {
     struct timeval interval;
@@ -111,7 +106,7 @@ static CURLcode test_lib525(char *URL)
     interval.tv_sec = 1;
     interval.tv_usec = 0;
 
-    multi_perform(m, &running);
+    multi_perform(multi, &running);
 
     abort_on_test_timeout();
 
@@ -122,7 +117,7 @@ static CURLcode test_lib525(char *URL)
     FD_ZERO(&wr);
     FD_ZERO(&exc);
 
-    multi_fdset(m, &rd, &wr, &exc, &maxfd);
+    multi_fdset(multi, &rd, &wr, &exc, &maxfd);
 
     /* At this point, maxfd is guaranteed to be greater or equal than -1. */
 
@@ -135,21 +130,21 @@ test_cleanup:
 
   if(testnum == 529) {
     /* proper cleanup sequence - type PA */
-    curl_multi_remove_handle(m, curl);
-    curl_multi_cleanup(m);
+    curl_multi_remove_handle(multi, curl);
+    curl_multi_cleanup(multi);
     curl_easy_cleanup(curl);
     curl_global_cleanup();
   }
   else { /* testnum == 525 */
     /* proper cleanup sequence - type PB */
-    curl_multi_remove_handle(m, curl);
+    curl_multi_remove_handle(multi, curl);
     curl_easy_cleanup(curl);
-    curl_multi_cleanup(m);
+    curl_multi_cleanup(multi);
     curl_global_cleanup();
   }
 
   /* close the local file */
-  fclose(hd_src);
+  curlx_fclose(hd_src);
 
-  return res;
+  return result;
 }

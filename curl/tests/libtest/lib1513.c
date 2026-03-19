@@ -30,8 +30,6 @@
 
 #include "first.h"
 
-#include "memdebug.h"
-
 static int progressKiller(void *arg,
                           double dltotal,
                           double dlnow,
@@ -47,23 +45,23 @@ static int progressKiller(void *arg,
   return 1;
 }
 
-static CURLcode test_lib1513(char *URL)
+static CURLcode test_lib1513(const char *URL)
 {
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   global_init(CURL_GLOBAL_ALL);
 
   easy_init(curl);
 
   easy_setopt(curl, CURLOPT_URL, URL);
-  easy_setopt(curl, CURLOPT_TIMEOUT, (long)7);
-  easy_setopt(curl, CURLOPT_NOSIGNAL, (long)1);
+  easy_setopt(curl, CURLOPT_TIMEOUT, 7L);
+  easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progressKiller);
   easy_setopt(curl, CURLOPT_PROGRESSDATA, NULL);
-  easy_setopt(curl, CURLOPT_NOPROGRESS, (long)0);
+  easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
 test_cleanup:
 
@@ -72,5 +70,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

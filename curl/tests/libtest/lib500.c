@@ -24,7 +24,6 @@
 #include "first.h"
 
 #include "testtrace.h"
-#include "memdebug.h"
 
 static int testcounter;
 
@@ -35,7 +34,7 @@ static curl_socket_t tst_opensocket(void *clientp,
   (void)clientp;
   (void)purpose;
   curl_mprintf("[OPEN] counter: %d\n", ++testcounter);
-  return socket(addr->family, addr->socktype, addr->protocol);
+  return CURL_SOCKET(addr->family, addr->socktype, addr->protocol);
 }
 
 static int tst_closesocket(void *clientp, curl_socket_t sock)
@@ -52,11 +51,11 @@ static void setupcallbacks(CURL *curl)
   testcounter = 0;
 }
 
-static CURLcode test_lib500(char *URL)
+static CURLcode test_lib500(const char *URL)
 {
-  CURLcode res;
+  CURLcode result;
   CURL *curl;
-  char *ipstr = NULL;
+  const char *ipstr = NULL;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
     curl_mfprintf(stderr, "curl_global_init() failed\n");
@@ -73,9 +72,9 @@ static CURLcode test_lib500(char *URL)
   test_setopt(curl, CURLOPT_URL, URL);
   test_setopt(curl, CURLOPT_HEADER, 1L);
 
-  libtest_debug_config.nohex = 1;
-  libtest_debug_config.tracetime = 1;
-  test_setopt(curl, CURLOPT_DEBUGDATA, &libtest_debug_config);
+  debug_config.nohex = TRUE;
+  debug_config.tracetime = TRUE;
+  test_setopt(curl, CURLOPT_DEBUGDATA, &debug_config);
   test_setopt(curl, CURLOPT_DEBUGFUNCTION, libtest_debug_cb);
   test_setopt(curl, CURLOPT_VERBOSE, 1L);
 
@@ -85,12 +84,12 @@ static CURLcode test_lib500(char *URL)
   if(testnum == 585 || testnum == 586 || testnum == 595 || testnum == 596)
     setupcallbacks(curl);
 
-  res = curl_easy_perform(curl);
+  result = curl_easy_perform(curl);
 
-  if(!res) {
-    res = curl_easy_getinfo(curl, CURLINFO_PRIMARY_IP, &ipstr);
+  if(!result) {
+    result = curl_easy_getinfo(curl, CURLINFO_PRIMARY_IP, &ipstr);
     if(libtest_arg2) {
-      FILE *moo = fopen(libtest_arg2, "wb");
+      FILE *moo = curlx_fopen(libtest_arg2, "wb");
       if(moo) {
         curl_off_t time_namelookup;
         curl_off_t time_connect;
@@ -128,7 +127,10 @@ static CURLcode test_lib500(char *URL)
                         (time_pretransfer / 1000000),
                         (long)(time_pretransfer % 1000000));
         }
-        if(time_pretransfer > time_posttransfer) {
+        if(time_posttransfer > time_pretransfer) {
+          /* counter-intuitive: on a GET request, all bytes are sent *before*
+           * PRETRANSFER happens. Thus POSTTRANSFER has to be smaller.
+           * The reverse would be true for a POST/PUT. */
           curl_mfprintf(moo, "pretransfer vs posttransfer: %"
                         CURL_FORMAT_CURL_OFF_T
                         ".%06ld %" CURL_FORMAT_CURL_OFF_T ".%06ld\n",
@@ -163,7 +165,7 @@ static CURLcode test_lib500(char *URL)
                         (long)(time_total % 1000000));
         }
 
-        fclose(moo);
+        curlx_fclose(moo);
       }
     }
   }
@@ -173,5 +175,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

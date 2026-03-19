@@ -24,7 +24,7 @@
 #include "unitcheck.h"
 
 #include "urldata.h"
-#include "sendf.h"
+#include "curl_trc.h"
 
 /*
  * This test hardcodes the knowledge of the buffer size which is internal to
@@ -36,8 +36,8 @@ static char input[4096];
 static char output[4096];
 
 /*
- * This debugf callback is simply dumping the string into the static buffer
- * for the unit test to inspect. Since we know that we're only dealing with
+ * This debugf callback dumps the string into the static buffer
+ * for the unit test to inspect. Since we know that we are only dealing with
  * text we can afford the luxury of skipping the type check here.
  */
 static int debugf_cb(CURL *handle, curl_infotype type, char *buf, size_t size,
@@ -54,7 +54,7 @@ static int debugf_cb(CURL *handle, curl_infotype type, char *buf, size_t size,
 
 static CURLcode t1652_setup(struct Curl_easy **easy)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
 
   global_init(CURL_GLOBAL_ALL);
   *easy = curl_easy_init();
@@ -64,7 +64,7 @@ static CURLcode t1652_setup(struct Curl_easy **easy)
   }
   curl_easy_setopt(*easy, CURLOPT_DEBUGFUNCTION, debugf_cb);
   curl_easy_setopt(*easy, CURLOPT_VERBOSE, 1L);
-  return res;
+  return result;
 }
 
 static void t1652_stop(struct Curl_easy *easy)
@@ -76,13 +76,13 @@ static void t1652_stop(struct Curl_easy *easy)
 static int verify(const char *info, const char *two)
 {
   /* the 'info' one has a newline appended */
-  char *nl = strchr(info, '\n');
+  const char *nl = strchr(info, '\n');
   if(!nl)
     return 1; /* nope */
   return strncmp(info, two, nl - info);
 }
 
-static CURLcode test_unit1652(char *arg)
+static CURLcode test_unit1652(const char *arg)
 {
   struct Curl_easy *easy;
 
@@ -124,7 +124,7 @@ static CURLcode test_unit1652(char *arg)
   memset(input, '\0', sizeof(input));
   memset(input, 'A', 2045);
   Curl_infof(easy, "%s", input);
-  fprintf(stderr, "output len %d: %s", (int)strlen(output), output);
+  curl_mfprintf(stderr, "output len %zu: %s", strlen(output), output);
   /* output is input + \n */
   fail_unless(strlen(output) == 2046, "No truncation of infof input");
   fail_unless(verify(output, input) == 0, "No truncation of infof input");
@@ -134,7 +134,7 @@ static CURLcode test_unit1652(char *arg)
   /* Just over the limit without newline for truncation via '...' */
   memset(input + 2045, 'A', 4);
   Curl_infof(easy, "%s", input);
-  fprintf(stderr, "output len %d: %s", (int)strlen(output), output);
+  curl_mfprintf(stderr, "output len %zu: %s", strlen(output), output);
   fail_unless(strlen(output) == 2047, "Truncation of infof input 1");
   fail_unless(output[sizeof(output) - 1] == '\0',
               "Truncation of infof input 1");
@@ -143,7 +143,7 @@ static CURLcode test_unit1652(char *arg)
   memset(input + 2045, 'A', 4);
   memset(input + 2045 + 4, '\n', 1);
   Curl_infof(easy, "%s", input);
-  fprintf(stderr, "output len %d: %s", (int)strlen(output), output);
+  curl_mfprintf(stderr, "output len %zu: %s", strlen(output), output);
   fail_unless(strlen(output) == 2047, "Truncation of infof input 2");
   fail_unless(output[sizeof(output) - 1] == '\0',
               "Truncation of infof input 2");
@@ -152,7 +152,7 @@ static CURLcode test_unit1652(char *arg)
   memset(input, '\0', sizeof(input));
   memset(input, 'A', sizeof(input) - 1);
   Curl_infof(easy, "%s", input);
-  fprintf(stderr, "output len %d: %s", (int)strlen(output), output);
+  curl_mfprintf(stderr, "output len %zu: %s", strlen(output), output);
   fail_unless(strlen(output) == 2047, "Truncation of infof input 3");
   fail_unless(output[sizeof(output) - 1] == '\0',
               "Truncation of infof input 3");

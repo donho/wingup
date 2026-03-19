@@ -21,7 +21,6 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
 
 #ifdef HAVE_NETINET_IN_H
@@ -40,28 +39,19 @@
 
 #ifdef USE_ARES
 #include <ares.h>
-#include <ares_version.h> /* really old c-ares did not include this by
-                             itself */
+#include <ares_version.h> /* really old c-ares did not include it by itself */
 #endif
 
 #include "urldata.h"
-#include "asyn.h"
-#include "sendf.h"
 #include "hostip.h"
-#include "hash.h"
 #include "multiif.h"
 #include "select.h"
-#include "share.h"
 #include "url.h"
-#include "curl_memory.h"
-/* The last #include file should be: */
-#include "memdebug.h"
 
 /***********************************************************************
  * Only for builds using asynchronous name resolves
  **********************************************************************/
 #ifdef CURLRES_ASYNCH
-
 
 #ifdef USE_ARES
 
@@ -70,26 +60,50 @@
 #endif
 
 /*
- * Curl_ares_getsock() is called when the outside world (using
+ * Curl_ares_pollset() is called when the outside world (using
  * curl_multi_fdset()) wants to get our fd_set setup and we are talking with
  * ares. The caller must make sure that this function is only called when we
  * have a working ares channel.
  *
  * Returns: sockets-in-use-bitmap
  */
-
-int Curl_ares_getsock(struct Curl_easy *data,
-                      ares_channel channel,
-                      curl_socket_t *socks)
+CURLcode Curl_ares_pollset(struct Curl_easy *data,
+                           ares_channel channel,
+                           struct easy_pollset *ps)
 {
   struct timeval maxtime = { CURL_TIMEOUT_RESOLVE, 0 };
   struct timeval timebuf;
-  int max = ares_getsock(channel,
-                         (ares_socket_t *)socks, MAX_SOCKSPEREASYHANDLE);
-  struct timeval *timeout = ares_timeout(channel, &maxtime, &timebuf);
-  timediff_t milli = curlx_tvtoms(timeout);
+  curl_socket_t sockets[16];  /* ARES documented limit */
+  unsigned int bitmap, i;
+  struct timeval *timeout;
+  timediff_t milli;
+  CURLcode result = CURLE_OK;
+
+  DEBUGASSERT(channel);
+  if(!channel)
+    return CURLE_FAILED_INIT;
+
+  bitmap = ares_getsock(channel, (ares_socket_t *)sockets,
+                        CURL_ARRAYSIZE(sockets));
+  for(i = 0; i < CURL_ARRAYSIZE(sockets); ++i) {
+    int flags = 0;
+    if(ARES_GETSOCK_READABLE(bitmap, i))
+      flags |= CURL_POLL_IN;
+    if(ARES_GETSOCK_WRITABLE(bitmap, i))
+      flags |= CURL_POLL_OUT;
+    if(!flags)
+      break;
+    result = Curl_pollset_change(data, ps, sockets[i], flags, 0);
+    if(result)
+      return result;
+  }
+
+  timeout = ares_timeout(channel, &maxtime, &timebuf);
+  if(!timeout)
+    timeout = &maxtime;
+  milli = curlx_tvtoms(timeout);
   Curl_expire(data, milli, EXPIRE_ASYNC_NAME);
-  return max;
+  return result;
 }
 
 /*
@@ -101,8 +115,7 @@ int Curl_ares_getsock(struct Curl_easy *data,
  *
  * return number of sockets it worked on, or -1 on error
  */
-int Curl_ares_perform(ares_channel channel,
-                      timediff_t timeout_ms)
+int Curl_ares_perform(ares_channel channel, timediff_t timeout_ms)
 {
   int nfds;
   int bitmask;
@@ -121,11 +134,11 @@ int Curl_ares_perform(ares_channel channel,
     pfd[i].revents = 0;
     if(ARES_GETSOCK_READABLE(bitmask, i)) {
       pfd[i].fd = socks[i];
-      pfd[i].events |= POLLRDNORM|POLLIN;
+      pfd[i].events |= POLLRDNORM | POLLIN;
     }
     if(ARES_GETSOCK_WRITABLE(bitmask, i)) {
       pfd[i].fd = socks[i];
-      pfd[i].events |= POLLWRNORM|POLLOUT;
+      pfd[i].events |= POLLWRNORM | POLLOUT;
     }
     if(pfd[i].events)
       num++;
@@ -142,22 +155,22 @@ int Curl_ares_perform(ares_channel channel,
     nfds = 0;
 
   if(!nfds)
-    /* Call ares_process() unconditionally here, even if we simply timed out
+    /* Call ares_process() unconditionally here, even if we timed out
        above, as otherwise the ares name resolve will not timeout! */
     ares_process_fd(channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
   else {
     /* move through the descriptors and ask for processing on them */
     for(i = 0; i < num; i++)
       ares_process_fd(channel,
-                      (pfd[i].revents & (POLLRDNORM|POLLIN)) ?
+                      (pfd[i].revents & (POLLRDNORM | POLLIN)) ?
                       pfd[i].fd : ARES_SOCKET_BAD,
-                      (pfd[i].revents & (POLLWRNORM|POLLOUT)) ?
+                      (pfd[i].revents & (POLLWRNORM | POLLOUT)) ?
                       pfd[i].fd : ARES_SOCKET_BAD);
   }
   return nfds;
 }
 
-#endif
+#endif /* USE_ARES */
 
 #endif /* CURLRES_ASYNCH */
 

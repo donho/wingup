@@ -58,6 +58,7 @@ CURLPROTO_IMAP
 CURLPROTO_IMAPS
 CURLPROTO_LDAP
 CURLPROTO_LDAPS
+CURLPROTO_MQTT
 CURLPROTO_POP3
 CURLPROTO_POP3S
 CURLPROTO_RTMP
@@ -79,10 +80,7 @@ CURLPROTO_TFTP
 
 # DEFAULT
 
-HTTP, HTTPS, FTP and FTPS (Added in 7.65.2).
-
-Older versions defaulted to all protocols except FILE, SCP and since 7.40.0
-SMB and SMBS.
+HTTP, HTTPS, FTP and FTPS
 
 # %PROTOCOLS%
 
@@ -97,7 +95,7 @@ int main(int argc, char **argv)
     curl_easy_setopt(curl, CURLOPT_URL, argv[1]);
 
     /* only allow redirects to HTTP and HTTPS URLs */
-    curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS, (long)
+    curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS,
                      CURLPROTO_HTTP | CURLPROTO_HTTPS);
 
     /* Perform the request */
@@ -105,6 +103,11 @@ int main(int argc, char **argv)
   }
 }
 ~~~
+
+# HISTORY
+
+**CURLPROTO_*** macros became `long` types in 8.16.0, prior to this version
+a `long` cast was necessary when passed to curl_easy_setopt(3).
 
 # DEPRECATED
 

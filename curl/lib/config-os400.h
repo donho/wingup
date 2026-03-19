@@ -37,10 +37,10 @@
 
 /* OS400 supports a 3-argument ASCII version of gethostbyaddr_r(), but its
  *  prototype is incompatible with the "standard" one (1st argument is not
- *  const). However, getaddrinfo() is supported (ASCII version defined as
- *  a local wrapper in setup-os400.h) in a threadsafe way: we can then
+ *  const). getaddrinfo() is supported (ASCII version defined as
+ *  a local wrapper in setup-os400.h) in a thread-safe way: we can then
  *  configure getaddrinfo() as such and get rid of gethostbyname_r() without
- *  loss of threadsafeness. */
+ *  loss of thread-safeness. */
 #undef HAVE_GETHOSTBYNAME_R
 #undef HAVE_GETHOSTBYNAME_R_3
 #undef HAVE_GETHOSTBYNAME_R_5
@@ -102,8 +102,14 @@
 /* Define if you have GSS API. */
 #define HAVE_GSSAPI
 
+/* Define if you have the <gssapi.h> header file. */
+#define HAVE_GSSAPI_H
+
 /* Define if you have the GNU gssapi libraries */
 #undef HAVE_GSSGNU
+
+/* Define if you have the `localtime_r' function. */
+#define HAVE_LOCALTIME_R
 
 /* Define if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H
@@ -129,7 +135,6 @@
 /* Define if you have the `socket' function. */
 #define HAVE_SOCKET
 
-
 /* The following define is needed on OS400 to enable strcmpi(), stricmp() and
    strdup(). */
 #define __cplusplus__strings__
@@ -142,9 +147,6 @@
 
 /* Define if you have the `stricmp' function. */
 #define HAVE_STRICMP
-
-/* Define if you have the `strdup' function. */
-#define HAVE_STRDUP
 
 /* Define if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H
@@ -182,12 +184,6 @@
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT              4
 
-/* Define if the compiler supports the 'long long' data type. */
-#define HAVE_LONGLONG
-
-/* The size of a `long long', as computed by sizeof. */
-#define SIZEOF_LONG_LONG        8
-
 /* The size of `long', as computed by sizeof. */
 #define SIZEOF_LONG             4
 
@@ -202,10 +198,6 @@
 
 /* Define if you have the ANSI C header files. */
 #define STDC_HEADERS
-
-/* Define to enable HTTP3 support (experimental, requires NGTCP2, quiche or
-   MSH3) */
-#undef USE_HTTP3
 
 /* Version number of package */
 #undef VERSION
@@ -261,8 +253,8 @@
 /* Define to the type of arg 1 for send. */
 #define SEND_TYPE_ARG1 int
 
-/* Define to the type qualifier of arg 2 for send. */
-#define SEND_QUAL_ARG2
+/* Define if the type qualifier of arg 2 for send is not const. */
+#define SEND_NONCONST_ARG2
 
 /* Define to the type of arg 2 for send. */
 #define SEND_TYPE_ARG2 char *

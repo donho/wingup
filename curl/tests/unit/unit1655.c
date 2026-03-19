@@ -23,9 +23,9 @@
  ***************************************************************************/
 #include "unitcheck.h"
 
-#include "doh.h" /* from the lib dir */
+#include "doh.h"
 
-static CURLcode test_unit1655(char *arg)
+static CURLcode test_unit1655(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -67,7 +67,7 @@ static CURLcode test_unit1655(char *arg)
       "this.is.an.otherwise-valid.hostname."
       "with-a-label-of-greater-length-than-the-sixty-three-characters-"
       "specified.in.the.RFCs.";
-    int i;
+    size_t i;
 
     struct test {
       const char *name;
@@ -89,7 +89,7 @@ static CURLcode test_unit1655(char *arg)
       { max, DOH_OK }                      /* expect buffer overwrite */
     };
 
-    for(i = 0; i < (int)(CURL_ARRAYSIZE(playlist)); i++) {
+    for(i = 0; i < CURL_ARRAYSIZE(playlist); i++) {
       const char *name = playlist[i].name;
       size_t olen = 100000;
       struct demo victim;
@@ -98,7 +98,7 @@ static CURLcode test_unit1655(char *arg)
       victim.canary1 = 87; /* magic numbers, arbitrarily picked */
       victim.canary2 = 35;
       victim.canary3 = 41;
-      d = doh_req_encode(name, DNS_TYPE_A, victim.dohbuffer,
+      d = doh_req_encode(name, CURL_DNS_TYPE_A, victim.dohbuffer,
                          sizeof(struct demo), /* allow room for overflow */
                          &olen);
 
@@ -121,7 +121,7 @@ static CURLcode test_unit1655(char *arg)
       else {
         if(d == DOH_OK) {
           fail_unless(olen <= sizeof(victim.dohbuffer),
-            "wrote outside bounds");
+                      "wrote outside bounds");
           fail_unless(olen > strlen(name), "unrealistic low size");
         }
       }
@@ -130,7 +130,7 @@ static CURLcode test_unit1655(char *arg)
 
   /* run normal cases and try to trigger buffer length related errors */
   do {
-    DNStype dnstype = DNS_TYPE_A;
+    DNStype dnstype = CURL_DNS_TYPE_A;
     unsigned char buffer[128];
     const size_t buflen = sizeof(buffer);
     const size_t magic1 = 9765;

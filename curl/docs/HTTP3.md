@@ -23,32 +23,31 @@ QUIC libraries we are using:
 
 [OpenSSL 3.2+ QUIC](https://github.com/openssl/openssl) - **EXPERIMENTAL**
 
-[msh3](https://github.com/nibanks/msh3) (with [msquic](https://github.com/microsoft/msquic)) - **EXPERIMENTAL**
-
 ## Experimental
 
 HTTP/3 support in curl is considered **EXPERIMENTAL** until further notice
-when built to use *quiche* or *msh3*. Only the *ngtcp2* backend is not
-experimental.
+when built to use *quiche*. Only the *ngtcp2* backend is not experimental.
 
 Further development and tweaking of the HTTP/3 support in curl happens in the
-master branch using pull-requests, just like ordinary changes.
+master branch using pull-requests like ordinary changes.
 
 To fix before we remove the experimental label:
 
- - the used QUIC library needs to consider itself non-beta
- - it is fine to "leave" individual backends as experimental if necessary
+- the used QUIC library needs to consider itself non-beta
+- it is fine to "leave" individual backends as experimental if necessary
 
 # ngtcp2 version
 
-Building curl with ngtcp2 involves 3 components: `ngtcp2` itself, `nghttp3` and a QUIC supporting TLS library. The supported TLS libraries are covered below.
+Building curl with ngtcp2 involves 3 components: `ngtcp2` itself, `nghttp3`
+and a QUIC supporting TLS library. The supported TLS libraries are covered
+below.
 
 While any version of `ngtcp2` and `nghttp3` from v1.0.0 on are expected to
 work, using the latest versions often brings functional and performance
 improvements.
 
-The build examples use `$NGHTTP3_VERSION` and `$NGTCP2_VERSION` as placeholders
-for the version you build.
+The build examples use `$NGHTTP3_VERSION` and `$NGTCP2_VERSION` as
+placeholders for the version you build.
 
 ## Build with OpenSSL
 
@@ -57,7 +56,7 @@ versions do not work.
 
 Build OpenSSL (version 3.5.0 or newer):
 
-     % git clone --quiet --depth=1 -b openssl-$OPENSSL_VERSION https://github.com/openssl/openssl
+     % git clone --depth 1 -b openssl-$OPENSSL_VERSION https://github.com/openssl/openssl
      % cd openssl
      % ./config --prefix=<somewhere1> --libdir=lib
      % make
@@ -90,14 +89,15 @@ Build curl:
      % git clone https://github.com/curl/curl
      % cd curl
      % autoreconf -fi
-     % LDFLAGS="-Wl,-rpath,<somewhere1>/lib" ./configure --with-openssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2=<somewhere3>
+     % LDFLAGS="-Wl,-rpath,<somewhere1>/lib" ./configure PKG_CONFIG_PATH=<ngtcp2-root>/lib/pkgconfig --with-openssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2
      % make
      % make install
 
 ## Build with quictls
 
-OpenSSL does not offer the required APIs for building a QUIC client. You need
-to use a TLS library that has such APIs and that works with *ngtcp2*.
+OpenSSL before version 3.5 does not offer the required APIs for building a
+QUIC client. You need to use a TLS library that has such APIs and that works
+with *ngtcp2*.
 
 Build quictls (any `+quic` tagged version works):
 
@@ -134,7 +134,7 @@ Build curl:
      % git clone https://github.com/curl/curl
      % cd curl
      % autoreconf -fi
-     % LDFLAGS="-Wl,-rpath,<somewhere1>/lib" ./configure --with-openssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2=<somewhere3>
+     % LDFLAGS="-Wl,-rpath,<somewhere1>/lib" ./configure PKG_CONFIG_PATH=<ngtcp2-root>/lib/pkgconfig --with-openssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2
      % make
      % make install
 
@@ -142,7 +142,7 @@ Build curl:
 
 Build GnuTLS:
 
-     % git clone --depth 1 https://gitlab.com/gnutls/gnutls.git
+     % git clone --depth 1 https://gitlab.com/gnutls/gnutls
      % cd gnutls
      % ./bootstrap
      % ./configure --prefix=<somewhere1>
@@ -176,7 +176,7 @@ Build curl:
      % git clone https://github.com/curl/curl
      % cd curl
      % autoreconf -fi
-     % ./configure --with-gnutls=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2=<somewhere3>
+     % ./configure PKG_CONFIG_PATH=<ngtcp2-root>/lib/pkgconfig --with-gnutls=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2
      % make
      % make install
 
@@ -184,7 +184,7 @@ Build curl:
 
 Build wolfSSL:
 
-     % git clone https://github.com/wolfSSL/wolfssl.git
+     % git clone https://github.com/wolfSSL/wolfssl
      % cd wolfssl
      % autoreconf -fi
      % ./configure --prefix=<somewhere1> --enable-quic --enable-session-ticket --enable-earlydata --enable-psk --enable-harden --enable-altcertchains
@@ -218,7 +218,7 @@ Build curl:
      % git clone https://github.com/curl/curl
      % cd curl
      % autoreconf -fi
-     % ./configure --with-wolfssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2=<somewhere3>
+     % ./configure PKG_CONFIG_PATH=<ngtcp2-root>/lib/pkgconfig --with-wolfssl=<somewhere1> --with-nghttp3=<somewhere2> --with-ngtcp2
      % make
      % make install
 
@@ -226,7 +226,9 @@ Build curl:
 
 quiche support is **EXPERIMENTAL**
 
-Since the quiche build manages its dependencies, curl can be built against the latest version. You are *probably* able to build against their main branch, but in case of problems, we recommend their latest release tag.
+Since the quiche build manages its dependencies, curl can be built against the
+latest version. You are *probably* able to build against their main branch,
+but in case of problems, we recommend their latest release tag.
 
 ## Build
 
@@ -249,113 +251,8 @@ Build curl:
      % make
      % make install
 
- If `make install` results in `Permission denied` error, you need to prepend
- it with `sudo`.
-
-# OpenSSL version
-
-QUIC support is **EXPERIMENTAL**
-
-Use OpenSSL 3.3.1 or newer (QUIC support was added in 3.3.0, with
-shortcomings on some platforms like macOS). 3.4.1 or newer is recommended.
-Build via:
-
-     % cd ..
-     % git clone -b $OPENSSL_VERSION https://github.com/openssl/openssl
-     % cd openssl
-     % ./config enable-tls1_3 --prefix=<somewhere> --libdir=lib
-     % make
-     % make install
-
-Build nghttp3:
-
-     % cd ..
-     % git clone -b $NGHTTP3_VERSION https://github.com/ngtcp2/nghttp3
-     % cd nghttp3
-     % git submodule update --init
-     % autoreconf -fi
-     % ./configure --prefix=<somewhere2> --enable-lib-only
-     % make
-     % make install
-
-Build curl:
-
-     % cd ..
-     % git clone https://github.com/curl/curl
-     % cd curl
-     % autoreconf -fi
-     % LDFLAGS="-Wl,-rpath,<somewhere>/lib" ./configure --with-openssl=<somewhere> --with-openssl-quic --with-nghttp3=<somewhere2>
-     % make
-     % make install
-
-You can build curl with cmake:
-
-     % cd ..
-     % git clone https://github.com/curl/curl
-     % cd curl
-     % cmake -B bld -DCURL_USE_OPENSSL=ON -DUSE_OPENSSL_QUIC=ON
-     % cmake --build bld
-     % cmake --install bld
-
- If `make install` results in `Permission denied` error, you need to prepend
- it with `sudo`.
-
-# msh3 (msquic) version
-
-**Note**: The msquic HTTP/3 backend is immature and is not properly functional
-one as of September 2023. Feel free to help us test it and improve it, but
-there is no point in filing bugs about it just yet.
-
-msh3 support is **EXPERIMENTAL**
-
-## Build Linux (with quictls fork of OpenSSL)
-
-Build msh3:
-
-     % git clone -b v0.6.0 --depth 1 --recursive https://github.com/nibanks/msh3
-     % cd msh3 && mkdir build && cd build
-     % cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-     % cmake --build .
-     % cmake --install .
-
-Build curl:
-
-     % git clone https://github.com/curl/curl
-     % cd curl
-     % autoreconf -fi
-     % ./configure LDFLAGS="-Wl,-rpath,/usr/local/lib" --with-msh3=/usr/local --with-openssl
-     % make
-     % make install
-
-Run from `/usr/local/bin/curl`.
-
-## Build Windows
-
-Build msh3:
-
-     % git clone -b v0.6.0 --depth 1 --recursive https://github.com/nibanks/msh3
-     % cd msh3 && mkdir build && cd build
-     % cmake -G 'Visual Studio 17 2022' -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-     % cmake --build . --config Release
-     % cmake --install . --config Release
-
-**Note** - On Windows, Schannel is used for TLS support by default. If you
-with to use (the quictls fork of) OpenSSL, specify the `-DQUIC_TLS=openssl`
-option to the generate command above. Also note that OpenSSL brings with it an
-additional set of build dependencies not specified here.
-
-Build curl (in [Visual Studio Command
-prompt](../winbuild/README.md#open-a-command-prompt)):
-
-     % git clone https://github.com/curl/curl
-     % cd curl/winbuild
-     % nmake /f Makefile.vc mode=dll WITH_MSH3=dll MSH3_PATH="C:/Program Files/msh3" MACHINE=x64
-
-Run in the `C:/Program Files/msh3/lib` directory, copy `curl.exe` to that
-directory, or copy `msquic.dll` and `msh3.dll` from that directory to the
-`curl.exe` directory. For example:
-
-     % C:\Program Files\msh3\lib> F:\curl\builds\libcurl-vc-x64-release-dll-ipv6-sspi-schannel-msh3\bin\curl.exe --http3 https://curl.se/
+If `make install` results in `Permission denied` error, you need to prepend
+it with `sudo`.
 
 # `--http3`
 
@@ -376,7 +273,7 @@ See this [list of public HTTP/3 servers](https://bagder.github.io/HTTP3-test/)
 ### HTTPS eyeballing
 
 With option `--http3` curl attempts earlier HTTP versions as well should the
-connect attempt via HTTP/3 not succeed "fast enough". This strategy is similar
+connect attempt via HTTP/3 fail "fast enough". This strategy is similar
 to IPv4/6 happy eyeballing where the alternate address family is used in
 parallel after a short delay.
 
@@ -391,25 +288,26 @@ or HTTP/1.1. At half of that value - currently - is the **soft** timeout. The
 soft timeout fires, when there has been **no data at all** seen from the
 server on the HTTP/3 connection.
 
-So, without you specifying anything, the hard timeout is 200ms and the soft is 100ms:
+Without you specifying anything, the hard timeout is 200ms and the soft is
+100ms:
 
- * Ideally, the whole QUIC handshake happens and curl has an HTTP/3 connection
-   in less than 100ms.
- * When QUIC is not supported (or UDP does not work for this network path), no
-   reply is seen and the HTTP/2 TLS+TCP connection starts 100ms later.
- * In the worst case, UDP replies start before 100ms, but drag on. This starts
-   the TLS+TCP connection after 200ms.
- * When the QUIC handshake fails, the TLS+TCP connection is attempted right
-   away. For example, when the QUIC server presents the wrong certificate.
+* Ideally, the whole QUIC handshake happens and curl has an HTTP/3 connection
+  in less than 100ms.
+* When QUIC is not supported (or UDP does not work for this network path), no
+  reply is seen and the HTTP/2 TLS+TCP connection starts 100ms later.
+* In the worst case, UDP replies start before 100ms, but drag on. This starts
+  the TLS+TCP connection after 200ms.
+* When the QUIC handshake fails, the TLS+TCP connection is attempted right
+  away. For example, when the QUIC server presents the wrong certificate.
 
 The whole transfer only fails, when **both** QUIC and TLS+TCP fail to
 handshake or time out.
 
 Note that all this happens in addition to IP version happy eyeballing. If the
 name resolution for the server gives more than one IP address, curl tries all
-those until one succeeds - just as with all other protocols. If those IP
-addresses contain both IPv6 and IPv4, those attempts happen, delayed, in
-parallel (the actual eyeballing).
+those until one succeeds - as with all other protocols. If those IP addresses
+contain both IPv6 and IPv4, those attempts happen, delayed, in parallel (the
+actual eyeballing).
 
 ## Known Bugs
 
@@ -424,8 +322,7 @@ development and experimenting.
 
 An existing local HTTP/1.1 server that hosts files. Preferably also a few huge
 ones. You can easily create huge local files like `truncate -s=8G 8GB` - they
-are huge but do not occupy that much space on disk since they are just big
-holes.
+are huge but do not occupy that much space on disk since they are big holes.
 
 In a Debian setup you can install apache2. It runs on port 80 and has a
 document root in `/var/www/html`. Download the 8GB file from apache with `curl
@@ -445,15 +342,15 @@ above.
 
 Get, build and install nghttp2:
 
-     % git clone https://github.com/nghttp2/nghttp2.git
+     % git clone https://github.com/nghttp2/nghttp2
      % cd nghttp2
      % autoreconf -fi
      % PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/daniel/build-quictls/lib/pkgconfig:/home/daniel/build-nghttp3/lib/pkgconfig:/home/daniel/build-ngtcp2/lib/pkgconfig LDFLAGS=-L/home/daniel/build-quictls/lib CFLAGS=-I/home/daniel/build-quictls/include ./configure --enable-maintainer-mode --prefix=/home/daniel/build-nghttp2 --disable-shared --enable-app --enable-http3 --without-jemalloc --without-libxml2 --without-systemd
      % make && make install
 
 Run the local h3 server on port 9443, make it proxy all traffic through to
-HTTP/1 on localhost port 80. For local toying, we can just use the test cert
-that exists in curl's test dir.
+HTTP/1 on localhost port 80. For local toying, we can use the test cert that
+exists in curl's test dir.
 
      % CERT=/path/to/stunnel.pem
      % $HOME/bin/nghttpx $CERT $CERT --backend=localhost,80 \
@@ -461,8 +358,8 @@ that exists in curl's test dir.
 
 ### Caddy
 
-[Install Caddy](https://caddyserver.com/docs/install). For easiest use, the binary
-should be either in your PATH or your current directory.
+[Install Caddy](https://caddyserver.com/docs/install). For easiest use, the
+binary should be either in your PATH or your current directory.
 
 Create a `Caddyfile` with the following content:
 ~~~
@@ -475,7 +372,9 @@ Then run Caddy:
 
      % ./caddy start
 
-Making requests to `https://localhost:7443` should tell you which protocol is being used.
+Making requests to `https://localhost:7443` should tell you which protocol is
+being used.
 
-You can change the hard-coded response to something more useful by replacing `respond`
-with `reverse_proxy` or `file_server`, for example: `reverse_proxy localhost:80`
+You can change the hard-coded response to something more useful by replacing
+`respond` with `reverse_proxy` or `file_server`, for example: `reverse_proxy
+localhost:80`

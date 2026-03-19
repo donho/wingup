@@ -23,8 +23,6 @@
  ***************************************************************************/
 #include "first.h"
 
-#include "memdebug.h"
-
 static int t599_progress_callback(void *clientp, double dltotal,
                                   double dlnow, double ultotal, double ulnow)
 {
@@ -41,10 +39,10 @@ static int t599_progress_callback(void *clientp, double dltotal,
   return 0;
 }
 
-static CURLcode test_lib599(char *URL)
+static CURLcode test_lib599(const char *URL)
 {
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode result = CURLE_OK;
   double content_length = 0.0;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
@@ -75,17 +73,17 @@ static CURLcode test_lib599(char *URL)
   /* include headers in the output */
   test_setopt(curl, CURLOPT_HEADER, 1L);
 
-  /* Perform the request, res will get the return code */
-  res = curl_easy_perform(curl);
+  /* Perform the request, result will get the return code */
+  result = curl_easy_perform(curl);
 
-  if(!res) {
+  if(!result) {
     FILE *moo;
-    res = curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD,
+    result = curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD,
                             &content_length);
-    moo = fopen(libtest_arg2, "wb");
+    moo = curlx_fopen(libtest_arg2, "wb");
     if(moo) {
       curl_mfprintf(moo, "CL %.0f\n", content_length);
-      fclose(moo);
+      curlx_fclose(moo);
     }
   }
 
@@ -95,5 +93,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return result;
 }

@@ -24,12 +24,11 @@
 #include "first.h"
 
 #include <stdio.h>
-#include <string.h>
 
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
   entry_func_t entry_func;
-  char *entry_name;
+  const char *entry_name;
   size_t tmp;
 
   if(argc < 2) {
@@ -50,6 +49,11 @@ int main(int argc, char **argv)
     fprintf(stderr, "Test '%s' not found.\n", entry_name);
     return 99;
   }
+
+#ifdef _WIN32
+  if(win32_init())
+    return 2;
+#endif
 
   return entry_func(argc - 1, argv + 1);
 }

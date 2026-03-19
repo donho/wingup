@@ -23,21 +23,14 @@
  * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
-
 #include "curl_setup.h"
 
 #include "pingpong.h"
 
+extern const struct Curl_scheme Curl_scheme_ftp;
+extern const struct Curl_scheme Curl_scheme_ftps;
+
 #ifndef CURL_DISABLE_FTP
-extern const struct Curl_handler Curl_handler_ftp;
-
-#ifdef USE_SSL
-extern const struct Curl_handler Curl_handler_ftps;
-#endif
-
-CURLcode Curl_GetFTPResponse(struct Curl_easy *data, ssize_t *nread,
-                             int *ftpcode);
-
 bool ftp_conns_match(struct connectdata *needle, struct connectdata *conn);
 
 #endif /* CURL_DISABLE_FTP */
@@ -64,11 +57,11 @@ enum {
   FTP_STOR_PREQUOTE,
   FTP_LIST_PREQUOTE,
   FTP_POSTQUOTE,
-  FTP_CWD,  /* change dir */
-  FTP_MKD,  /* if the dir did not exist */
+  FTP_CWD,  /* change directory */
+  FTP_MKD,  /* if the directory did not exist */
   FTP_MDTM, /* to figure out the datestamp */
   FTP_TYPE, /* to set type when doing a head-like request */
-  FTP_LIST_TYPE, /* set type when about to do a dir list */
+  FTP_LIST_TYPE, /* set type when about to do a directory list */
   FTP_RETR_LIST_TYPE,
   FTP_RETR_TYPE, /* set type when about to RETR a file */
   FTP_STOR_TYPE, /* set type when about to STOR a file */
@@ -114,12 +107,17 @@ struct FTP {
   char *path;    /* points to the urlpieces struct field */
   char *pathalloc; /* if non-NULL a pointer to an allocated path */
 
-  /* transfer a file/body or not, done as a typedefed enum just to make
-     debuggers display the full symbol and not just the numerical value */
+  /* transfer a file/body or not, done as a typedefed enum to make debuggers
+     display the full symbol and not the numerical value */
   curl_pp_transfer transfer;
   curl_off_t downloadsize;
 };
 
+/* one struct entry for each path component (of 'rawpath') */
+struct pathcomp {
+  int start; /* start column */
+  int len;   /* length in bytes */
+};
 
 /* ftp_conn is used for struct connection-oriented data in the connectdata
    struct */
@@ -128,35 +126,32 @@ struct ftp_conn {
   char *account;
   char *alternative_to_user;
   char *entrypath; /* the PWD reply when we logged on */
-  char *file;    /* url-decoded filename (or path) */
-  char **dirs;   /* realloc()ed array for path components */
-  char *newhost; /* the (allocated) IP addr or hostname to connect the data
-                    connection to */
+  const char *file; /* url-decoded filename (or path), points into rawpath */
+  char *rawpath; /* URL decoded, allocated, version of the path */
+  struct pathcomp *dirs; /* allocated array for path components */
   char *prevpath;   /* url-decoded conn->path from the previous transfer */
   char transfertype; /* set by ftp_transfertype for use by Curl_client_write()a
                         and others (A/I or zero) */
-  curl_off_t retr_size_saved; /* Size of retrieved file saved */
   char *server_os;     /* The target server operating system. */
   curl_off_t known_filesize; /* file size is different from -1, if wildcard
                                 LIST parsing was done and wc_statemach set
                                 it */
-  int dirdepth;  /* number of entries used in the 'dirs' array */
-  int cwdcount;     /* number of CWD commands issued */
   int count1; /* general purpose counter for the state machine */
   int count2; /* general purpose counter for the state machine */
   int count3; /* general purpose counter for the state machine */
-  unsigned short newport;  /* the port of 'newhost' to connect the data
-                              connection to */
-  ftpstate state; /* always use ftp.c:state() to change state! */
-  ftpstate state_saved; /* transfer type saved to be reloaded after data
-                           connection is established */
+  unsigned short dirdepth;  /* number of entries used in the 'dirs' array,
+                               < FTP_MAX_DIR_DEPTH */
+  unsigned short cwdcount;  /* number of CWD commands issued,
+                               < FTP_MAX_DIR_DEPTH */
+  unsigned char state; /* (ftpstate enum) always use ftp.c:state() to change
+                          state! */
   unsigned char use_ssl;   /* if AUTH TLS is to be attempted etc, for FTP or
                               IMAP or POP3 or others! (type: curl_usessl)*/
   unsigned char ccc;       /* ccc level for this connection */
   BIT(ftp_trying_alternative);
   BIT(dont_check);  /* Set to TRUE to prevent the final (post-transfer)
                        file size and 226/250 status check. It should still
-                       read the line, just ignore the result. */
+                       read the line, ignore the result. */
   BIT(ctl_valid);   /* Tells Curl_ftp_quit() whether or not to do anything. If
                        the connection has timed out or been closed, this
                        should be FALSE when it gets to Curl_ftp_quit() */

@@ -25,7 +25,7 @@
 
 #include "http_aws_sigv4.h"
 
-static CURLcode test_unit1979(char *arg)
+static CURLcode test_unit1979(const char *arg)
 {
   UNITTEST_BEGIN_SIMPLE
 
@@ -84,6 +84,12 @@ static CURLcode test_unit1979(char *arg)
       "/example%20space/"
     },
     {
+      "get-plus-normalized",
+      true,
+      "/example+space/",
+      "/example%2Bspace/"
+    },
+    {
       "get-slash-dot-slash-unnormalized",
       false,
       "/./",
@@ -109,7 +115,7 @@ static CURLcode test_unit1979(char *arg)
     struct dynbuf canonical_path;
 
     char buffer[1024];
-    char *canonical_path_string;
+    const char *canonical_path_string;
     int result;
     int msnprintf_result;
 
@@ -127,11 +133,11 @@ static CURLcode test_unit1979(char *arg)
                                       testcases[i].normalize);
     fail_unless(msnprintf_result >= 0, "curl_msnprintf fails");
     fail_unless(!result && canonical_path_string &&
-                !strcmp(canonical_path_string, testcases[i].canonical_url),
+                  !strcmp(canonical_path_string, testcases[i].canonical_url),
                 buffer);
     curlx_dyn_free(&canonical_path);
   }
-#endif /* !defined(CURL_DISABLE_HTTP) && !defined(CURL_DISABLE_AWS) */
+#endif /* !CURL_DISABLE_HTTP && !CURL_DISABLE_AWS */
 
   UNITTEST_END_SIMPLE
 }
