@@ -1,16 +1,12 @@
 name: CI_build
-
 on: [push, pull_request]
-
 jobs:
   build:
-
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         build_platform: [x64, x86, ARM64]
-
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -18,30 +14,34 @@ jobs:
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
 
-    - name: Add nmake
-      if: matrix.build_platform == 'ARM64'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-          arch: amd64_arm64
-
-    - name: Add nmake
-      if: matrix.build_platform == 'x64' || matrix.build_platform == 'x86'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-          arch: ${{ matrix.build_platform }}
-
-    - name: nmake libcurl
-      working-directory: curl/winbuild
+    - name: Configure curl (${{ matrix.build_platform }})
       run: |
-           set WINBUILD_ACKNOWLEDGE_DEPRECATED=yes
-           nmake /f Makefile.vc mode=static vc=15 RTLIBCFG=static WINBUILD_ACKNOWLEDGE_DEPRECATED=yes           MACHINE="${{ matrix.build_platform }}"
-           nmake /f Makefile.vc mode=static vc=15 RTLIBCFG=static WINBUILD_ACKNOWLEDGE_DEPRECATED=yes DEBUG=yes MACHINE="${{ matrix.build_platform }}"
+        $arch = "${{ matrix.build_platform }}" -eq "x86" ? "Win32" : "${{ matrix.build_platform }}"
+        cmake curl -B curl/build/${{ matrix.build_platform }} -A $arch `
+          -DBUILD_SHARED_LIBS=OFF `
+          -DCURL_STATIC_CRT=ON `
+          -DBUILD_CURL_EXE=OFF `
+          -DCURL_USE_SCHANNEL=ON `
+          -DCURL_USE_OPENSSL=OFF `
+          -DBUILD_TESTING=OFF `
+          -DUSE_LIBPSL=OFF `
+          -DCURL_USE_LIBPSL=OFF `
+          -DUSE_NGHTTP2=OFF `
+          -DUSE_LIBIDN2=OFF
 
-    - name: MSBuild of GUP exe
+    - name: Build curl Release (${{ matrix.build_platform }})
+      run: cmake --build curl/build/${{ matrix.build_platform }} --config Release
+
+    - name: Build curl Debug (${{ matrix.build_platform }})
+      run: cmake --build curl/build/${{ matrix.build_platform }} --config Debug
+
+    - name: Build GUP Release (${{ matrix.build_platform }})
       working-directory: vcproj
-      run: |
-           msbuild GUP.sln /m /p:configuration="Release" /p:platform="${{ matrix.build_platform }}"
-           msbuild GUP.sln /m /p:configuration="Debug"   /p:platform="${{ matrix.build_platform }}"
+      run: msbuild GUP.sln /m /p:configuration="Release" /p:platform="${{ matrix.build_platform }}"
+
+    - name: Build GUP Debug (${{ matrix.build_platform }})
+      working-directory: vcproj
+      run: msbuild GUP.sln /m /p:configuration="Debug" /p:platform="${{ matrix.build_platform }}"
 
     - name: Archive artifacts for x64
       if: matrix.build_platform == 'x64'

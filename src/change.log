@@ -1,28 +1,5 @@
-WinGup (for Notepad++) v5.4 new featurs:
+WinGup (for Notepad++) v5.4.1 new featurs:
 
-1. Security enhancement: Add option to verify integrity & authenticity of server-returned XML (XMLDsig).
-2. Security enhancement: Remove 2 curl options CURLSSLOPT_ALLOW_BEAST & CURLSSLOPT_NO_REVOKE to make more secured.
-3. Security enhancement: Integrate libcurl statically into GUP.exe to remove dependency on libcurl.dll.
-4. Make security error log more explicite.
-5. Limit -clean & -unzip of Notepad++ plugin management usage.
-
-
-WinGup (for Notepad++) v5.3.9 new featurs:
-
-1. Security enhancement: Log security errors automatically in "%LOCALUSERDATA%\WinGUp\log\securityError.log".
-
-
-WinGup (for Notepad++) v5.3.8 new featurs:
-
-1. Security enhancement: Add checking code signing certificate ability.
-
-
-WinGup (for Notepad++) v5.3.7 new featurs:
-
-1. Security enhancement: Add a comment line argument (option) to verify the download URL.
-
-
-WinGup (for Notepad++) v5.3.6 new featurs:
-
-1. Security enhancement: Make infoUrl overridable via command-line argument. 
-
+1. Fix regression of launching notepad++.exe with admin privilege.
+2. Fix WinGUp downloading fail regression behind corporate MITM proxies.
+3. Update cURL to v8.19.0 to fix its security issue (CVE-2025-14819)
